@@ -1,0 +1,38 @@
+{
+  "name": "@balansertefakta/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@apollo/server": "^4.11.0",
+    "@pothos/core": "^4.3.0",
+    "@pothos/plugin-prisma": "^4.2.0",
+    "@pothos/plugin-relay": "^4.2.0",
+    "@pothos/plugin-validation": "^4.2.0",
+    "@prisma/client": "^6.2.0",
+    "graphql": "^16.9.0",
+    "graphql-scalars": "^1.24.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prisma": "^6.2.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
