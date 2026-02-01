@@ -8,11 +8,11 @@ const server = new ApolloServer({
   introspection: true,
 });
 
-const PORT = parseInt(process.env.PORT ?? '4000', 10);
+const PORT = parseInt(process.env['PORT'] ?? '4000', 10);
 
 const { url } = await startStandaloneServer(server, {
   listen: { port: PORT },
-  context: async () => createContext(),
+  context: async ({ req }) => createContext(req),
 });
 
 console.log(`🚀 Balansertefakta API ready at ${url}`);

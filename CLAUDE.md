@@ -70,6 +70,14 @@ Schema builder pattern (not SDL-first) with plugins:
 - Relay plugin for cursor-based pagination
 - Validation plugin for input validation
 
+### Authentication
+Simple JWT-based auth (bcryptjs + jsonwebtoken):
+- Mutations: `register(input)`, `login(input)` → returns `{ token, user }`
+- Query: `me` → returns current user (null if not authenticated)
+- Token passed via `Authorization: Bearer <token>` header
+- Frontend stores token in localStorage, auto-attaches via Apollo link
+- Auth levels: `ANONYMOUS | VERIFIED | STRONG_ID`
+
 ## Package Structure
 
 ```
@@ -77,24 +85,27 @@ packages/
 ├── api/                    # GraphQL API backend
 │   ├── src/
 │   │   ├── index.ts       # Apollo Server entry
+│   │   ├── lib/auth.ts    # JWT/bcrypt utilities
 │   │   ├── graphql/
 │   │   │   ├── builder.ts # Pothos schema builder
+│   │   │   ├── context.ts # GraphQL context (extracts JWT)
 │   │   │   ├── schema.ts  # Schema assembly
-│   │   │   └── types/     # Type definitions (navigation, content, evidence, user)
+│   │   │   └── types/     # Type definitions (navigation, content, evidence, user, auth)
 │   │   └── db/client.ts   # Prisma client singleton
 │   └── prisma/
 │       ├── schema.prisma  # Data model
-│       └── seed.ts        # Sample data
+│       └── seed.ts        # Sample data + test users
 ├── web/                    # React frontend
 │   ├── src/
 │   │   ├── App.tsx        # Route definitions
-│   │   ├── pages/         # Page components
+│   │   ├── context/       # React contexts (AuthContext)
+│   │   ├── pages/         # Page components (incl. LoginPage, RegisterPage)
 │   │   └── lib/
-│   │       ├── apollo.ts  # Apollo client config
-│   │       └── queries.ts # GraphQL queries
+│   │       ├── apollo.ts  # Apollo client config (with auth link)
+│   │       └── queries.ts # GraphQL queries + auth mutations
 │   └── vite.config.ts     # Proxy: /graphql → localhost:4000
 └── e2e/                    # Playwright tests
-    └── playwright.config.ts # Auto-starts API & web servers
+    └── tests/             # Test specs (home, api, auth)
 ```
 
 ## Key Conventions
@@ -117,7 +128,14 @@ Environment (packages/api/.env):
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5433/balansertefakta?schema=public"
 PORT=4000
+JWT_SECRET="dev-secret-change-in-production"
 ```
+
+### Test Users (seeded)
+| User | Email | Password |
+|------|-------|----------|
+| Venstre-Vegard | vegard@test.no | password123 |
+| Høyre-Henrik | henrik@test.no | password123 |
 
 ## GraphQL Development
 

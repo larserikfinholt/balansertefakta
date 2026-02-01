@@ -461,6 +461,7 @@ model User {
   id              String    @id @default(cuid())
   email           String?   @unique
   displayName     String?
+  passwordHash    String?
   authLevel       AuthLevel @default(ANONYMOUS)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

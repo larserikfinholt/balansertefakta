@@ -1,6 +1,10 @@
 {
     "chat.tools.terminal.autoApprove": {
         "docker-compose": true,
-        "docker ps": true
+        "docker ps": true,
+        "/^netstat -ano \\| findstr LISTEN \\| findstr :3000$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

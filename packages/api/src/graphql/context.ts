@@ -1,4 +1,5 @@
 import { prisma } from '../db/client.js';
+import { verifyToken } from '../lib/auth.js';
 
 export interface Context {
   prisma: typeof prisma;
@@ -6,9 +7,30 @@ export interface Context {
   authLevel: 'ANONYMOUS' | 'VERIFIED' | 'STRONG_ID';
 }
 
-export function createContext(): Context {
+export interface ContextRequest {
+  headers: {
+    authorization?: string;
+  };
+}
+
+export async function createContext(req?: ContextRequest): Promise<Context> {
+  const authHeader = req?.headers?.authorization;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+
+    if (payload) {
+      return {
+        prisma,
+        userId: payload.userId,
+        authLevel: payload.authLevel as Context['authLevel'],
+      };
+    }
+  }
+
   return {
     prisma,
-    authLevel: 'ANONYMOUS', // Default, will be set by auth middleware
+    authLevel: 'ANONYMOUS',
   };
 }

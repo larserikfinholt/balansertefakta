@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
+}
 
 async function main() {
   console.log('🌱 Seeding database...');
@@ -206,12 +211,42 @@ async function main() {
 
   console.log(`✓ Logged events`);
 
+  // Create test users
+  const vegardPassword = await hashPassword('password123');
+  const vegard = await prisma.user.upsert({
+    where: { email: 'vegard@test.no' },
+    update: {},
+    create: {
+      email: 'vegard@test.no',
+      displayName: 'Venstre-Vegard',
+      passwordHash: vegardPassword,
+      authLevel: 'VERIFIED',
+      contributionBudget: 20,
+    },
+  });
+
+  const henrikPassword = await hashPassword('password123');
+  const henrik = await prisma.user.upsert({
+    where: { email: 'henrik@test.no' },
+    update: {},
+    create: {
+      email: 'henrik@test.no',
+      displayName: 'Høyre-Henrik',
+      passwordHash: henrikPassword,
+      authLevel: 'VERIFIED',
+      contributionBudget: 20,
+    },
+  });
+
+  console.log(`✓ Created test users: ${vegard.displayName}, ${henrik.displayName}`);
+
   console.log('\n✅ Seeding complete!');
   console.log('\nSample data created:');
   console.log(`  - Topic: ${topic.title}`);
   console.log(`  - Question: ${question.title.substring(0, 50)}...`);
   console.log(`  - Claim with balanced arguments (1 PRO, 1 CONTRA)`);
   console.log(`  - Evidence from IPCC AR6 report`);
+  console.log(`  - Test users: vegard@test.no, henrik@test.no (password: password123)`);
 }
 
 main()

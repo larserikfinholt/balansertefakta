@@ -1,17 +1,24 @@
 import { Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { HomePage } from './pages/HomePage';
 import { TopicPage } from './pages/TopicPage';
 import { QuestionPage } from './pages/QuestionPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { Layout } from './components/Layout';
 
 export function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/topic/:slug" element={<TopicPage />} />
-        <Route path="/question/:id" element={<QuestionPage />} />
-      </Routes>
-    </Layout>
+    <AuthProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/topic/:slug" element={<TopicPage />} />
+          <Route path="/question/:id" element={<QuestionPage />} />
+        </Routes>
+      </Layout>
+    </AuthProvider>
   );
 }
