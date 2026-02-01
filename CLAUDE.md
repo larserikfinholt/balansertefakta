@@ -63,6 +63,31 @@ Content (Claims, Measures, Arguments) is stored as a Directed Acyclic Graph. The
 
 ### Evidence Model (Multi-Level)
 **Domain** → **Outlet** → **Artifact** → **Extract** → **EvidenceLink**
+- LinkageStrength: `DIRECT | INDIRECT | CONSISTENT_WITH | WEAKLY_INDICATIVE | MISUSED_OR_NOT_SUPPORTING`
+
+### Claim Typology
+- ClaimType: `EMPIRICAL | CAUSAL | PROGNOSTIC | NORMATIVE | DEFINITIONAL`
+
+### Scope
+Questions, Claims, and Arguments can have explicit scoping:
+- TemporalScope: `PRE_1900 | EARLY_20TH_CENTURY | MID_20TH_CENTURY | LATE_20TH_CENTURY | EARLY_21ST_CENTURY | CURRENT | NEAR_FUTURE | FAR_FUTURE | TIMELESS`
+- GeographicScope: `GLOBAL | CONTINENTAL | NATIONAL | REGIONAL | LOCAL | SITE_SPECIFIC`
+- SystemBoundary: `ISOLATED_SYSTEM | CLOSED_SYSTEM | OPEN_SYSTEM | NESTED_SYSTEM`
+
+### Disagreement Analysis
+Disagreements are first-class entities:
+- DisagreementType: `DATA_DISAGREEMENT | INTERPRETATION_DISAGREEMENT | VALUE_DISAGREEMENT | DEFINITIONAL_DISAGREEMENT | SCOPE_DISAGREEMENT`
+
+### User Stance
+Stances are split into descriptive and normative components:
+- DescriptiveAssessment: `STRONGLY_TRUE | LIKELY_TRUE | UNCERTAIN | LIKELY_FALSE | STRONGLY_FALSE`
+- NormativePreference: `STRONGLY_SUPPORT | SUPPORT | NEUTRAL | OPPOSE | STRONGLY_OPPOSE`
+- JustificationType: `DATA_BASED | VALUE_BASED | RISK_BASED | PRAGMATIC | PRINCIPLED`
+
+### Maturity Checklist
+Questions have computed maturity tracking:
+- hasScope, hasDisagreementAxis, hasProArguments, hasContraArguments
+- hasSupportingEvidence, hasChallengingEvidence, completenessScore (0-100)
 
 ### GraphQL with Pothos
 Schema builder pattern (not SDL-first) with plugins:
