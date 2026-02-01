@@ -76,6 +76,32 @@ export const GET_QUESTION = gql`
                 challengeType
                 description
                 status
+                responseCount
+                createdAt
+                createdBy {
+                  id
+                  displayName
+                }
+                responses {
+                  id
+                  content
+                  depth
+                  createdAt
+                  createdBy {
+                    id
+                    displayName
+                  }
+                  replies {
+                    id
+                    content
+                    depth
+                    createdAt
+                    createdBy {
+                      id
+                      displayName
+                    }
+                  }
+                }
               }
               extract {
                 id
@@ -184,6 +210,162 @@ export const CHALLENGE_SOURCE = gql`
       id
       challengeType
       description
+      status
+    }
+  }
+`;
+
+// Evidence link query for dedicated page
+export const GET_EVIDENCE_LINK = gql`
+  query GetEvidenceLink($id: String!) {
+    evidenceLink(id: $id) {
+      id
+      supportStrength
+      isChallenged
+      createdBy {
+        id
+        displayName
+      }
+      extract {
+        id
+        content
+        extractType
+        pageNumber
+        timestamp
+        paragraph
+        artifact {
+          id
+          title
+          url
+          artifactType
+          publishedAt
+          authors
+          outlet {
+            id
+            name
+            domain {
+              id
+              name
+              hostname
+              credibilityScore
+            }
+          }
+        }
+      }
+      claim {
+        id
+        statement
+      }
+      argument {
+        id
+        content
+        argumentType
+        claim {
+          id
+          statement
+        }
+      }
+      measure {
+        id
+        title
+      }
+      challenges {
+        id
+        challengeType
+        description
+        status
+        responseCount
+        createdAt
+        createdBy {
+          id
+          displayName
+        }
+        responses {
+          id
+          content
+          depth
+          createdAt
+          createdBy {
+            id
+            displayName
+          }
+          evidenceLink {
+            id
+            extract {
+              content
+              artifact {
+                title
+                url
+              }
+            }
+          }
+          replies {
+            id
+            content
+            depth
+            createdAt
+            createdBy {
+              id
+              displayName
+            }
+            evidenceLink {
+              id
+              extract {
+                content
+                artifact {
+                  title
+                  url
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Challenge response mutations
+export const CREATE_CHALLENGE_RESPONSE = gql`
+  mutation CreateChallengeResponse($input: CreateChallengeResponseInput!) {
+    createChallengeResponse(input: $input) {
+      id
+      content
+      depth
+      createdAt
+      createdBy {
+        id
+        displayName
+      }
+    }
+  }
+`;
+
+export const ACKNOWLEDGE_CHALLENGE = gql`
+  mutation AcknowledgeChallenge($challengeId: String!) {
+    acknowledgeChallenge(challengeId: $challengeId) {
+      id
+      status
+    }
+  }
+`;
+
+export const RETRACT_EVIDENCE = gql`
+  mutation RetractEvidence($evidenceLinkId: String!, $reason: String!) {
+    retractEvidence(evidenceLinkId: $evidenceLinkId, reason: $reason) {
+      id
+      challenges {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const FLAG_CHALLENGE = gql`
+  mutation FlagChallenge($challengeId: String!, $reason: String!) {
+    flagChallenge(challengeId: $challengeId, reason: $reason) {
+      id
       status
     }
   }

@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ChallengeSourceModal } from './ChallengeSourceModal';
+import { ChallengeDiscussionDrawer } from './ChallengeDiscussionDrawer';
+import { ChallengeBadge, challengeTypeLabels, strengthLabels } from './ChallengeBadge';
 
 const styles = {
   container: {
@@ -145,31 +148,30 @@ const styles = {
   },
 };
 
-// Challenge type labels in Norwegian
-const challengeTypeLabels: Record<string, string> = {
-  MISQUOTE: 'Feilsitering',
-  CHERRY_PICKING: 'Selektiv bruk',
-  OUT_OF_CONTEXT: 'Tatt ut av kontekst',
-  OUTDATED: 'Utdatert',
-  METHODOLOGY: 'Metodefeil',
-  CONFLICT_OF_INTEREST: 'Interessekonflikt',
-  RELEVANCE: 'Ikke relevant',
-};
-
-// Support strength labels
-const strengthLabels: Record<string, string> = {
-  STRONGLY_SUPPORTS: 'Sterk',
-  SUPPORTS: 'Stotter',
-  WEAKLY_SUPPORTS: 'Svak',
-  NEUTRAL: 'Noytral',
-  CONTRADICTS: 'Motsier',
-};
+interface ChallengeResponse {
+  id: string;
+  content: string;
+  depth: number;
+  createdAt: string;
+  createdBy: {
+    id: string;
+    displayName: string | null;
+  };
+  replies?: ChallengeResponse[];
+}
 
 interface Challenge {
   id: string;
   challengeType: string;
   description: string;
   status: string;
+  responseCount: number;
+  createdAt: string;
+  createdBy: {
+    id: string;
+    displayName: string | null;
+  } | null;
+  responses: ChallengeResponse[];
 }
 
 interface Domain {
@@ -218,6 +220,7 @@ export interface EvidenceLinkWithArtifact extends Omit<EvidenceLink, 'extract'> 
 interface EvidenceSectionProps {
   evidenceLinks: EvidenceLinkWithArtifact[];
   argumentId: string;
+  questionId?: string;
 }
 
 function getCredibilityStyle(score: number | null) {
@@ -233,10 +236,12 @@ function getCredibilityLabel(score: number | null): string {
   return `${percent}%`;
 }
 
-export function EvidenceSection({ evidenceLinks, argumentId }: EvidenceSectionProps) {
+export function EvidenceSection({ evidenceLinks, argumentId, questionId }: EvidenceSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [challengeModalOpen, setChallengeModalOpen] = useState(false);
   const [selectedEvidenceLinkId, setSelectedEvidenceLinkId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<{ challenge: Challenge; evidenceLinkId: string } | null>(null);
 
   if (evidenceLinks.length === 0) {
     return null;
@@ -245,6 +250,16 @@ export function EvidenceSection({ evidenceLinks, argumentId }: EvidenceSectionPr
   const handleChallengeClick = (evidenceLinkId: string) => {
     setSelectedEvidenceLinkId(evidenceLinkId);
     setChallengeModalOpen(true);
+  };
+
+  const handleOpenDrawer = (challenge: Challenge, evidenceLinkId: string) => {
+    setSelectedChallenge({ challenge, evidenceLinkId });
+    setDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedChallenge(null);
   };
 
   const hasChallengedEvidence = evidenceLinks.some((e) => e.isChallenged);
@@ -263,7 +278,7 @@ export function EvidenceSection({ evidenceLinks, argumentId }: EvidenceSectionPr
           {evidenceLinks.length} {evidenceLinks.length === 1 ? 'kilde' : 'kilder'}
         </span>
         {hasChallengedEvidence && (
-          <span style={styles.challengedBadge}>Bestridt</span>
+          <ChallengeBadge status="OPEN" compact />
         )}
       </button>
 
@@ -310,7 +325,7 @@ export function EvidenceSection({ evidenceLinks, argumentId }: EvidenceSectionPr
                         {strengthLabels[evidence.supportStrength] || evidence.supportStrength}
                       </span>
                       {evidence.isChallenged && (
-                        <span style={styles.challengedBadge}>Bestridt</span>
+                        <ChallengeBadge status={evidence.challenges[0]?.status || 'OPEN'} compact />
                       )}
                     </div>
                     <a
@@ -327,11 +342,21 @@ export function EvidenceSection({ evidenceLinks, argumentId }: EvidenceSectionPr
                 {evidence.challenges.length > 0 && (
                   <div style={styles.challengeList}>
                     {evidence.challenges.map((challenge) => (
-                      <div key={challenge.id} style={styles.challengeItem}>
-                        <span style={styles.challengeType}>
-                          {challengeTypeLabels[challenge.challengeType] || challenge.challengeType}:
-                        </span>{' '}
-                        {challenge.description}
+                      <div
+                        key={challenge.id}
+                        style={{ ...styles.challengeItem, cursor: 'pointer' }}
+                        onClick={() => handleOpenDrawer(challenge, evidence.id)}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+                          <span style={styles.challengeType}>
+                            {challengeTypeLabels[challenge.challengeType] || challenge.challengeType}
+                          </span>
+                          <ChallengeBadge status={challenge.status} responseCount={challenge.responseCount} compact />
+                        </div>
+                        <div>{challenge.description}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#0066cc', marginTop: '0.25rem' }}>
+                          Se diskusjon ({challenge.responseCount} svar) →
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -358,6 +383,15 @@ export function EvidenceSection({ evidenceLinks, argumentId }: EvidenceSectionPr
             setChallengeModalOpen(false);
             setSelectedEvidenceLinkId(null);
           }}
+        />
+      )}
+
+      {drawerOpen && selectedChallenge && (
+        <ChallengeDiscussionDrawer
+          challenge={selectedChallenge.challenge}
+          evidenceLinkId={selectedChallenge.evidenceLinkId}
+          onClose={handleCloseDrawer}
+          questionId={questionId}
         />
       )}
     </div>

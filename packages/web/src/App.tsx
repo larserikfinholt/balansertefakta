@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { HomePage } from './pages/HomePage';
 import { TopicPage } from './pages/TopicPage';
 import { QuestionPage } from './pages/QuestionPage';
+import { EvidencePage } from './pages/EvidencePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { Layout } from './components/Layout';
@@ -17,6 +18,7 @@ export function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/topic/:slug" element={<TopicPage />} />
           <Route path="/question/:id" element={<QuestionPage />} />
+          <Route path="/evidence/:id" element={<EvidencePage />} />
         </Routes>
       </Layout>
     </AuthProvider>

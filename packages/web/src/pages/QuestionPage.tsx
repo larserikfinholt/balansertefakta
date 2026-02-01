@@ -202,6 +202,7 @@ export function QuestionPage() {
                       <EvidenceSection
                         evidenceLinks={arg.evidenceLinks}
                         argumentId={arg.id}
+                        questionId={question.id}
                       />
                     </div>
                   ))}
@@ -225,6 +226,7 @@ export function QuestionPage() {
                       <EvidenceSection
                         evidenceLinks={arg.evidenceLinks}
                         argumentId={arg.id}
+                        questionId={question.id}
                       />
                     </div>
                   ))}

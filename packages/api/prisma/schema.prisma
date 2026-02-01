@@ -369,7 +369,10 @@ model EvidenceLink {
   
   // Challenges to this evidence link
   challenges      SourceChallenge[]
-  
+
+  // Used as counter-evidence in challenge responses
+  counterEvidenceFor ChallengeResponse[] @relation("CounterEvidence")
+
   @@index([extractId])
   @@index([claimId])
   @@index([argumentId])
@@ -399,10 +402,34 @@ model SourceChallenge {
   updatedAt       DateTime        @updatedAt
   createdById     String?
   createdBy       User?           @relation(fields: [createdById], references: [id])
-  
+
+  // Discussion responses
+  responses       ChallengeResponse[]
+
   @@index([evidenceLinkId])
   @@index([challengeType])
   @@index([status])
+}
+
+// Challenge discussion responses (max 2 levels deep)
+model ChallengeResponse {
+  id              String            @id @default(cuid())
+  challengeId     String
+  challenge       SourceChallenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  parentId        String?           // For nested responses (max 2 levels enforced in app)
+  parent          ChallengeResponse? @relation("ResponseThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies         ChallengeResponse[] @relation("ResponseThread")
+  content         String
+  // Optional counter-evidence to support response
+  evidenceLinkId  String?
+  evidenceLink    EvidenceLink?     @relation("CounterEvidence", fields: [evidenceLinkId], references: [id])
+  createdById     String
+  createdBy       User              @relation(fields: [createdById], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([challengeId])
+  @@index([parentId])
 }
 
 enum ChallengeType {
@@ -416,10 +443,11 @@ enum ChallengeType {
 }
 
 enum ChallengeStatus {
-  OPEN
-  ACCEPTED
-  REJECTED
-  DISPUTED
+  OPEN              // New, undiscussed
+  DISCUSSED         // Has responses, no consensus
+  ACKNOWLEDGED      // Poster accepts challenge has merit
+  RETRACTED         // Poster withdraws/corrects evidence
+  FLAGGED           // Moderator-confirmed error (misquote proven false)
 }
 
 // ============================================
@@ -481,6 +509,7 @@ model User {
   extracts        Extract[]
   evidenceLinks   EvidenceLink[]
   sourceChallenges SourceChallenge[]
+  challengeResponses ChallengeResponse[]
   summaries       Summary[]
   questionClaims  QuestionClaim[]
   questionMeasures QuestionMeasure[]
