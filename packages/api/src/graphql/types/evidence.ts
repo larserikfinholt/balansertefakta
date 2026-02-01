@@ -9,8 +9,8 @@ builder.enumType('ExtractType', {
   values: ['QUOTE', 'PARAPHRASE', 'DATA_POINT', 'FIGURE', 'TABLE'] as const,
 });
 
-builder.enumType('SupportStrength', {
-  values: ['STRONGLY_SUPPORTS', 'SUPPORTS', 'WEAKLY_SUPPORTS', 'NEUTRAL', 'CONTRADICTS'] as const,
+builder.enumType('LinkageStrength', {
+  values: ['DIRECT', 'INDIRECT', 'CONSISTENT_WITH', 'WEAKLY_INDICATIVE', 'MISUSED_OR_NOT_SUPPORTING'] as const,
 });
 
 builder.enumType('ChallengeType', {
@@ -82,7 +82,7 @@ builder.prismaObject('Extract', {
 builder.prismaObject('EvidenceLink', {
   fields: (t) => ({
     id: t.exposeID('id'),
-    supportStrength: t.expose('supportStrength', { type: 'SupportStrength' }),
+    linkageStrength: t.expose('linkageStrength', { type: 'LinkageStrength' }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     extract: t.relation('extract'),
     claim: t.relation('claim', { nullable: true }),
@@ -186,7 +186,7 @@ const CreateExtractInput = builder.inputType('CreateExtractInput', {
 const LinkEvidenceInput = builder.inputType('LinkEvidenceInput', {
   fields: (t) => ({
     extractId: t.string({ required: true }),
-    supportStrength: t.field({ type: 'SupportStrength' }),
+    linkageStrength: t.field({ type: 'LinkageStrength' }),
     claimId: t.string(),
     argumentId: t.string(),
     measureId: t.string(),
@@ -327,7 +327,7 @@ builder.mutationField('linkEvidence', (t) =>
         ...query,
         data: {
           extractId: args.input.extractId,
-          supportStrength: args.input.supportStrength ?? 'SUPPORTS',
+          linkageStrength: args.input.linkageStrength ?? 'DIRECT',
           claimId: args.input.claimId,
           argumentId: args.input.argumentId,
           measureId: args.input.measureId,

@@ -1,5 +1,18 @@
 import { builder } from '../builder.js';
 
+// UserStance enums
+builder.enumType('DescriptiveAssessment', {
+  values: ['LIKELY_TRUE', 'POSSIBLY_TRUE', 'UNCERTAIN', 'POSSIBLY_FALSE', 'LIKELY_FALSE'] as const,
+});
+
+builder.enumType('NormativePreference', {
+  values: ['STRONGLY_SUPPORT', 'SUPPORT', 'NEUTRAL', 'OPPOSE', 'STRONGLY_OPPOSE'] as const,
+});
+
+builder.enumType('JustificationType', {
+  values: ['DATA_BASED', 'VALUE_BASED', 'RISK_BASED'] as const,
+});
+
 // User type
 builder.prismaObject('User', {
   fields: (t) => ({
@@ -27,6 +40,29 @@ builder.prismaObject('Summary', {
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     question: t.relation('question'),
     createdBy: t.relation('createdBy', { nullable: true }),
+  }),
+});
+
+// UserStance type - split into descriptive vs normative assessment
+builder.prismaObject('UserStance', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    descriptiveAssessment: t.expose('descriptiveAssessment', {
+      type: 'DescriptiveAssessment',
+      nullable: true,
+    }),
+    normativePreference: t.expose('normativePreference', {
+      type: 'NormativePreference',
+      nullable: true,
+    }),
+    justifications: t.expose('justifications', {
+      type: ['JustificationType'],
+    }),
+    note: t.exposeString('note', { nullable: true }),
+    createdAt: t.expose('createdAt', { type: 'DateTime' }),
+    updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
+    question: t.relation('question'),
+    user: t.relation('user'),
   }),
 });
 
@@ -151,8 +187,110 @@ builder.mutationField('createSummary', (t) =>
           userId: ctx.userId,
         },
       });
-      
+
       return summary;
+    },
+  })
+);
+
+// UserStance input
+const SetUserStanceInput = builder.inputType('SetUserStanceInput', {
+  fields: (t) => ({
+    questionId: t.string({ required: true }),
+    descriptiveAssessment: t.field({ type: 'DescriptiveAssessment' }),
+    normativePreference: t.field({ type: 'NormativePreference' }),
+    justifications: t.field({ type: ['JustificationType'] }),
+    note: t.string(),
+  }),
+});
+
+// Query for user's stance on a question
+builder.queryField('userStance', (t) =>
+  t.prismaField({
+    type: 'UserStance',
+    nullable: true,
+    args: {
+      questionId: t.arg.string({ required: true }),
+    },
+    resolve: (query, _root, args, ctx) => {
+      if (!ctx.userId) return null;
+
+      return ctx.prisma.userStance.findUnique({
+        ...query,
+        where: {
+          userId_questionId: {
+            userId: ctx.userId,
+            questionId: args.questionId,
+          },
+        },
+      });
+    },
+  })
+);
+
+// Query for all stances on a question
+builder.queryField('questionStances', (t) =>
+  t.prismaField({
+    type: ['UserStance'],
+    args: {
+      questionId: t.arg.string({ required: true }),
+    },
+    resolve: (query, _root, args, ctx) =>
+      ctx.prisma.userStance.findMany({
+        ...query,
+        where: { questionId: args.questionId },
+        orderBy: { createdAt: 'desc' },
+      }),
+  })
+);
+
+// Set user stance mutation (upsert)
+builder.mutationField('setUserStance', (t) =>
+  t.prismaField({
+    type: 'UserStance',
+    args: {
+      input: t.arg({ type: SetUserStanceInput, required: true }),
+    },
+    resolve: async (query, _root, args, ctx) => {
+      if (!ctx.userId) {
+        throw new Error('Must be authenticated to set stance');
+      }
+
+      const stance = await ctx.prisma.userStance.upsert({
+        ...query,
+        where: {
+          userId_questionId: {
+            userId: ctx.userId,
+            questionId: args.input.questionId,
+          },
+        },
+        create: {
+          userId: ctx.userId,
+          questionId: args.input.questionId,
+          descriptiveAssessment: args.input.descriptiveAssessment,
+          normativePreference: args.input.normativePreference,
+          justifications: args.input.justifications ?? [],
+          note: args.input.note,
+        },
+        update: {
+          descriptiveAssessment: args.input.descriptiveAssessment,
+          normativePreference: args.input.normativePreference,
+          justifications: args.input.justifications ?? [],
+          note: args.input.note,
+        },
+      });
+
+      await ctx.prisma.event.create({
+        data: {
+          eventType: 'set_user_stance',
+          entityType: 'UserStance',
+          entityId: stance.id,
+          payload: args.input,
+          userId: ctx.userId,
+        },
+      });
+
+      return stance;
     },
   })
 );

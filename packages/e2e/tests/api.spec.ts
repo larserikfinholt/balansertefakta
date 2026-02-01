@@ -87,7 +87,7 @@ test.describe('GraphQL API', () => {
           input: {
             statement: 'E2E Test Claim - Climate change is primarily caused by human activity',
             context: 'Test claim for E2E testing',
-            claimType: 'FACTUAL',
+            claimType: 'EMPIRICAL',
           },
         },
       },
@@ -219,7 +219,7 @@ test.describe('Balance Enforcement', () => {
         variables: {
           input: {
             statement: 'Unbalanced test claim',
-            claimType: 'FACTUAL',
+            claimType: 'EMPIRICAL',
           },
         },
       },

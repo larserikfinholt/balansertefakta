@@ -135,7 +135,7 @@ test.describe('Authentication UI', () => {
     await page.waitForURL('/');
 
     // Should redirect and show user name
-    await expect(page.getByText('Venstre-Vegard')).toBeVisible();
+    await expect(page.getByText('Venstre-Vegard', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Logg ut' })).toBeVisible();
   });
 
@@ -148,7 +148,7 @@ test.describe('Authentication UI', () => {
     
     // Wait for navigation after login
     await page.waitForURL('/');
-    await expect(page.getByText('Venstre-Vegard')).toBeVisible();
+    await expect(page.getByText('Venstre-Vegard', { exact: true })).toBeVisible();
 
     // Logout
     await page.getByRole('button', { name: 'Logg ut' }).click();

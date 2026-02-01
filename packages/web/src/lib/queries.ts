@@ -69,7 +69,7 @@ export const GET_QUESTION = gql`
             }
             evidenceLinks {
               id
-              supportStrength
+              linkageStrength
               isChallenged
               challenges {
                 id
@@ -220,7 +220,7 @@ export const GET_EVIDENCE_LINK = gql`
   query GetEvidenceLink($id: String!) {
     evidenceLink(id: $id) {
       id
-      supportStrength
+      linkageStrength
       isChallenged
       createdBy {
         id

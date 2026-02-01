@@ -19,67 +19,76 @@ datasource db {
 // ============================================
 
 model Topic {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
-  slug        String     @unique
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   createdById String?
-  createdBy   User?      @relation(fields: [createdById], references: [id])
-  
-  subtopics   Subtopic[]
-  
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
+  subtopics Subtopic[]
+
   @@index([slug])
 }
 
 model Subtopic {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
   slug        String
   topicId     String
-  topic       Topic      @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   createdById String?
-  createdBy   User?      @relation(fields: [createdById], references: [id])
-  
-  questions   Question[]
-  
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
+  questions Question[]
+
   @@unique([topicId, slug])
   @@index([topicId])
 }
 
 model Question {
-  id          String     @id @default(cuid())
-  title       String     // The question being asked
-  description String?    // Context/clarification
+  id          String         @id @default(cuid())
+  title       String // The question being asked
+  description String? // Context/clarification
   slug        String
   subtopicId  String
-  subtopic    Subtopic   @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  subtopic    Subtopic       @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
   status      QuestionStatus @default(DRAFT)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   createdById String?
-  createdBy   User?      @relation(fields: [createdById], references: [id])
-  
+  createdBy   User?          @relation(fields: [createdById], references: [id])
+
   // DAG links - questions can reference claims and measures
   questionClaims   QuestionClaim[]
   questionMeasures QuestionMeasure[]
   summaries        Summary[]
-  
+
+  // Explicit scope definition
+  scope Scope?
+
+  // Disagreement axes
+  disagreements Disagreement[]
+
+  // User stances
+  stances UserStance[]
+
   @@unique([subtopicId, slug])
   @@index([subtopicId])
   @@index([status])
 }
 
 enum QuestionStatus {
-  DRAFT           // Work in progress
-  OPEN            // Accepting contributions
-  BALANCED        // Has both pro and contra arguments
-  MATURE          // Well-documented, reviewed
-  ARCHIVED        // No longer active
+  DRAFT // Work in progress
+  OPEN // Accepting contributions
+  BALANCED // Has both pro and contra arguments
+  MATURE // Well-documented, reviewed
+  ARCHIVED // No longer active
 }
 
 // ============================================
@@ -87,73 +96,80 @@ enum QuestionStatus {
 // ============================================
 
 model Claim {
-  id              String    @id @default(cuid())
-  statement       String    // The falsifiable claim
-  context         String?   // Additional context
-  claimType       ClaimType @default(FACTUAL)
-  status          ContentStatus @default(DRAFT)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  createdById     String?
-  createdBy       User?     @relation(fields: [createdById], references: [id])
-  
+  id          String        @id @default(cuid())
+  statement   String // The falsifiable claim
+  context     String? // Additional context
+  claimType   ClaimType     @default(EMPIRICAL)
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdById String?
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+
   // DAG: Claims can be referenced from multiple questions
-  questions       QuestionClaim[]
-  
+  questions QuestionClaim[]
+
   // Arguments for/against this claim
-  arguments       Argument[]
-  
+  arguments Argument[]
+
   // Evidence supporting this claim
-  evidenceLinks   EvidenceLink[]
-  
+  evidenceLinks EvidenceLink[]
+
+  // Explicit scope definition
+  scope Scope?
+
+  // Disagreement axes
+  disagreements Disagreement[]
+
   // Balance tracking
-  proArgumentCount   Int @default(0)
+  proArgumentCount    Int @default(0)
   contraArgumentCount Int @default(0)
-  
+
   @@index([status])
   @@index([claimType])
 }
 
 enum ClaimType {
-  FACTUAL       // Can be verified with data
-  INTERPRETIVE  // Depends on interpretation
-  VALUE         // Based on values/ethics
-  PREDICTIVE    // Future-oriented claim
+  EMPIRICAL // Observable/measurable fact
+  CAUSAL // X causes/leads to Y
+  PROGNOSTIC // Prediction about future
+  NORMATIVE // Ought/should statement
+  DEFINITIONAL // What something is/means
 }
 
 enum ContentStatus {
-  DRAFT       // Work in progress
-  PROPOSED    // Submitted for review
-  ACCEPTED    // Accepted into the system
-  CHALLENGED  // Under dispute
-  REJECTED    // Not accepted
-  ARCHIVED    // No longer active
+  DRAFT // Work in progress
+  PROPOSED // Submitted for review
+  ACCEPTED // Accepted into the system
+  CHALLENGED // Under dispute
+  REJECTED // Not accepted
+  ARCHIVED // No longer active
 }
 
 model Measure {
-  id              String    @id @default(cuid())
-  title           String    // Short title
-  description     String    // What is being proposed
-  rationale       String?   // Why this measure
-  status          ContentStatus @default(DRAFT)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  createdById     String?
-  createdBy       User?     @relation(fields: [createdById], references: [id])
-  
+  id          String        @id @default(cuid())
+  title       String // Short title
+  description String // What is being proposed
+  rationale   String? // Why this measure
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdById String?
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+
   // DAG: Measures can be referenced from multiple questions
-  questions       QuestionMeasure[]
-  
+  questions QuestionMeasure[]
+
   // Arguments for/against this measure
-  arguments       Argument[]
-  
+  arguments Argument[]
+
   // Evidence supporting this measure
-  evidenceLinks   EvidenceLink[]
-  
+  evidenceLinks EvidenceLink[]
+
   // Balance tracking
-  proArgumentCount   Int @default(0)
+  proArgumentCount    Int @default(0)
   contraArgumentCount Int @default(0)
-  
+
   @@index([status])
 }
 
@@ -167,7 +183,7 @@ model QuestionClaim {
   addedAt    DateTime @default(now())
   addedById  String?
   addedBy    User?    @relation(fields: [addedById], references: [id])
-  
+
   @@unique([questionId, claimId])
   @@index([questionId])
   @@index([claimId])
@@ -182,7 +198,7 @@ model QuestionMeasure {
   addedAt    DateTime @default(now())
   addedById  String?
   addedBy    User?    @relation(fields: [addedById], references: [id])
-  
+
   @@unique([questionId, measureId])
   @@index([questionId])
   @@index([measureId])
@@ -193,28 +209,31 @@ model QuestionMeasure {
 // ============================================
 
 model Argument {
-  id              String       @id @default(cuid())
-  content         String       // The argument text
-  argumentType    ArgumentType
-  strength        ArgumentStrength @default(MEDIUM)
-  status          ContentStatus @default(DRAFT)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  createdById     String?
-  createdBy       User?        @relation(fields: [createdById], references: [id])
-  
+  id           String           @id @default(cuid())
+  content      String // The argument text
+  argumentType ArgumentType
+  strength     ArgumentStrength @default(MEDIUM)
+  status       ContentStatus    @default(DRAFT)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  createdById  String?
+  createdBy    User?            @relation(fields: [createdById], references: [id])
+
   // An argument can target a Claim OR a Measure (not both)
-  claimId         String?
-  claim           Claim?       @relation(fields: [claimId], references: [id], onDelete: Cascade)
-  measureId       String?
-  measure         Measure?     @relation(fields: [measureId], references: [id], onDelete: Cascade)
-  
+  claimId   String?
+  claim     Claim?   @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  measureId String?
+  measure   Measure? @relation(fields: [measureId], references: [id], onDelete: Cascade)
+
   // Counterpositions (steelman responses)
   counterpositions Counterposition[]
-  
+
   // Evidence supporting this argument
-  evidenceLinks   EvidenceLink[]
-  
+  evidenceLinks EvidenceLink[]
+
+  // Explicit scope definition (arguments can have different scope than parent claim)
+  scope Scope?
+
   @@index([claimId])
   @@index([measureId])
   @@index([argumentType])
@@ -233,19 +252,19 @@ enum ArgumentStrength {
 
 // Steelman counterposition
 model Counterposition {
-  id          String    @id @default(cuid())
-  content     String    // Best possible response
+  id          String        @id @default(cuid())
+  content     String // Best possible response
   argumentId  String
-  argument    Argument  @relation(fields: [argumentId], references: [id], onDelete: Cascade)
+  argument    Argument      @relation(fields: [argumentId], references: [id], onDelete: Cascade)
   status      ContentStatus @default(DRAFT)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   createdById String?
-  createdBy   User?     @relation(fields: [createdById], references: [id])
-  
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+
   // Evidence supporting this counterposition
   evidenceLinks EvidenceLink[]
-  
+
   @@index([argumentId])
 }
 
@@ -254,51 +273,51 @@ model Counterposition {
 // ============================================
 
 model Domain {
-  id          String    @id @default(cuid())
-  hostname    String    @unique  // e.g., "nrk.no"
-  name        String?            // e.g., "NRK"
+  id          String  @id @default(cuid())
+  hostname    String  @unique // e.g., "nrk.no"
+  name        String? // e.g., "NRK"
   description String?
-  
+
   // Credibility metadata
   credibilityScore Float?
   credibilityNotes String?
-  
-  outlets     Outlet[]
-  
+
+  outlets Outlet[]
+
   @@index([hostname])
 }
 
 model Outlet {
-  id          String    @id @default(cuid())
-  name        String    // e.g., "NRK Klima", "NRK Debatt"
+  id          String  @id @default(cuid())
+  name        String // e.g., "NRK Klima", "NRK Debatt"
   description String?
   domainId    String
-  domain      Domain    @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  
-  artifacts   Artifact[]
-  
+  domain      Domain  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  artifacts Artifact[]
+
   @@index([domainId])
 }
 
 model Artifact {
-  id            String       @id @default(cuid())
-  url           String       @unique
-  title         String
-  artifactType  ArtifactType
-  publishedAt   DateTime?
-  authors       String[]     // Array of author names
-  outletId      String?
-  outlet        Outlet?      @relation(fields: [outletId], references: [id])
-  
+  id           String       @id @default(cuid())
+  url          String       @unique
+  title        String
+  artifactType ArtifactType
+  publishedAt  DateTime?
+  authors      String[] // Array of author names
+  outletId     String?
+  outlet       Outlet?      @relation(fields: [outletId], references: [id])
+
   // Metadata
-  doi           String?      // For academic papers
-  isbn          String?      // For books
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  
-  extracts      Extract[]
-  
+  doi  String? // For academic papers
+  isbn String? // For books
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  extracts Extract[]
+
   @@index([outletId])
   @@index([artifactType])
 }
@@ -316,23 +335,23 @@ enum ArtifactType {
 }
 
 model Extract {
-  id            String    @id @default(cuid())
-  content       String    // The quoted/referenced content
-  extractType   ExtractType
-  artifactId    String
-  artifact      Artifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)
-  
+  id          String      @id @default(cuid())
+  content     String // The quoted/referenced content
+  extractType ExtractType
+  artifactId  String
+  artifact    Artifact    @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
   // Precise location reference
-  pageNumber    String?
-  timestamp     String?   // For video/audio
-  paragraph     String?
-  
-  createdAt     DateTime  @default(now())
-  createdById   String?
-  createdBy     User?     @relation(fields: [createdById], references: [id])
-  
+  pageNumber String?
+  timestamp  String? // For video/audio
+  paragraph  String?
+
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
   evidenceLinks EvidenceLink[]
-  
+
   @@index([artifactId])
 }
 
@@ -346,29 +365,29 @@ enum ExtractType {
 
 // Link between extracts and content
 model EvidenceLink {
-  id              String    @id @default(cuid())
-  extractId       String
-  extract         Extract   @relation(fields: [extractId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(cuid())
+  extractId String
+  extract   Extract @relation(fields: [extractId], references: [id], onDelete: Cascade)
+
   // Can link to Claim, Argument, Measure, or Counterposition
-  claimId         String?
-  claim           Claim?    @relation(fields: [claimId], references: [id], onDelete: Cascade)
-  argumentId      String?
-  argument        Argument? @relation(fields: [argumentId], references: [id], onDelete: Cascade)
-  measureId       String?
-  measure         Measure?  @relation(fields: [measureId], references: [id], onDelete: Cascade)
+  claimId           String?
+  claim             Claim?           @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  argumentId        String?
+  argument          Argument?        @relation(fields: [argumentId], references: [id], onDelete: Cascade)
+  measureId         String?
+  measure           Measure?         @relation(fields: [measureId], references: [id], onDelete: Cascade)
   counterpositionId String?
   counterposition   Counterposition? @relation(fields: [counterpositionId], references: [id], onDelete: Cascade)
-  
-  // How well does this evidence support?
-  supportStrength SupportStrength @default(SUPPORTS)
-  
-  createdAt       DateTime  @default(now())
-  createdById     String?
-  createdBy       User?     @relation(fields: [createdById], references: [id])
-  
+
+  // What is the logical relationship between evidence and claim?
+  linkageStrength LinkageStrength @default(DIRECT)
+
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
   // Challenges to this evidence link
-  challenges      SourceChallenge[]
+  challenges SourceChallenge[]
 
   // Used as counter-evidence in challenge responses
   counterEvidenceFor ChallengeResponse[] @relation("CounterEvidence")
@@ -379,12 +398,12 @@ model EvidenceLink {
   @@index([measureId])
 }
 
-enum SupportStrength {
-  STRONGLY_SUPPORTS
-  SUPPORTS
-  WEAKLY_SUPPORTS
-  NEUTRAL
-  CONTRADICTS
+enum LinkageStrength {
+  DIRECT // Evidence directly addresses claim
+  INDIRECT // Evidence supports premise that supports claim
+  CONSISTENT_WITH // Evidence aligns but doesn't prove
+  WEAKLY_INDICATIVE // Suggestive but not conclusive
+  MISUSED_OR_NOT_SUPPORTING // Evidence doesn't actually support (feilsitering)
 }
 
 // ============================================
@@ -392,19 +411,19 @@ enum SupportStrength {
 // ============================================
 
 model SourceChallenge {
-  id              String          @id @default(cuid())
-  evidenceLinkId  String
-  evidenceLink    EvidenceLink    @relation(fields: [evidenceLinkId], references: [id], onDelete: Cascade)
-  challengeType   ChallengeType
-  description     String          // The challenge explanation
-  status          ChallengeStatus @default(OPEN)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  createdById     String?
-  createdBy       User?           @relation(fields: [createdById], references: [id])
+  id             String          @id @default(cuid())
+  evidenceLinkId String
+  evidenceLink   EvidenceLink    @relation(fields: [evidenceLinkId], references: [id], onDelete: Cascade)
+  challengeType  ChallengeType
+  description    String // The challenge explanation
+  status         ChallengeStatus @default(OPEN)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdById    String?
+  createdBy      User?           @relation(fields: [createdById], references: [id])
 
   // Discussion responses
-  responses       ChallengeResponse[]
+  responses ChallengeResponse[]
 
   @@index([evidenceLinkId])
   @@index([challengeType])
@@ -413,41 +432,41 @@ model SourceChallenge {
 
 // Challenge discussion responses (max 2 levels deep)
 model ChallengeResponse {
-  id              String            @id @default(cuid())
-  challengeId     String
-  challenge       SourceChallenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  parentId        String?           // For nested responses (max 2 levels enforced in app)
-  parent          ChallengeResponse? @relation("ResponseThread", fields: [parentId], references: [id], onDelete: Cascade)
-  replies         ChallengeResponse[] @relation("ResponseThread")
-  content         String
+  id             String              @id @default(cuid())
+  challengeId    String
+  challenge      SourceChallenge     @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  parentId       String? // For nested responses (max 2 levels enforced in app)
+  parent         ChallengeResponse?  @relation("ResponseThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies        ChallengeResponse[] @relation("ResponseThread")
+  content        String
   // Optional counter-evidence to support response
-  evidenceLinkId  String?
-  evidenceLink    EvidenceLink?     @relation("CounterEvidence", fields: [evidenceLinkId], references: [id])
-  createdById     String
-  createdBy       User              @relation(fields: [createdById], references: [id])
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  evidenceLinkId String?
+  evidenceLink   EvidenceLink?       @relation("CounterEvidence", fields: [evidenceLinkId], references: [id])
+  createdById    String
+  createdBy      User                @relation(fields: [createdById], references: [id])
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@index([challengeId])
   @@index([parentId])
 }
 
 enum ChallengeType {
-  MISQUOTE           // Kilden sier ikke det du påstår
-  CHERRY_PICKING     // Selective use of data
-  OUT_OF_CONTEXT     // Context changes meaning
-  OUTDATED           // Newer data available
-  METHODOLOGY        // Method flaws
+  MISQUOTE // Kilden sier ikke det du påstår
+  CHERRY_PICKING // Selective use of data
+  OUT_OF_CONTEXT // Context changes meaning
+  OUTDATED // Newer data available
+  METHODOLOGY // Method flaws
   CONFLICT_OF_INTEREST
-  RELEVANCE          // Doesn't address the claim
+  RELEVANCE // Doesn't address the claim
 }
 
 enum ChallengeStatus {
-  OPEN              // New, undiscussed
-  DISCUSSED         // Has responses, no consensus
-  ACKNOWLEDGED      // Poster accepts challenge has merit
-  RETRACTED         // Poster withdraws/corrects evidence
-  FLAGGED           // Moderator-confirmed error (misquote proven false)
+  OPEN // New, undiscussed
+  DISCUSSED // Has responses, no consensus
+  ACKNOWLEDGED // Poster accepts challenge has merit
+  RETRACTED // Poster withdraws/corrects evidence
+  FLAGGED // Moderator-confirmed error (misquote proven false)
 }
 
 // ============================================
@@ -455,28 +474,28 @@ enum ChallengeStatus {
 // ============================================
 
 model Summary {
-  id          String    @id @default(cuid())
-  questionId  String
-  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  version     Int       @default(1)
-  
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  version    Int      @default(1)
+
   // Required structure
-  proPoints       Json    // Array of { text, evidenceLinkIds }
-  contraPoints    Json    // Array of { text, evidenceLinkIds }
-  
+  proPoints    Json // Array of { text, evidenceLinkIds }
+  contraPoints Json // Array of { text, evidenceLinkIds }
+
   // Disagreement analysis
-  dataDisagreements         String[]
+  dataDisagreements           String[]
   interpretationDisagreements String[]
-  valueDisagreements        String[]
-  
+  valueDisagreements          String[]
+
   // Open questions
-  openQuestions   String[]
-  
-  status          ContentStatus @default(DRAFT)
-  createdAt       DateTime  @default(now())
-  createdById     String?
-  createdBy       User?     @relation(fields: [createdById], references: [id])
-  
+  openQuestions String[]
+
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  createdById String?
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+
   @@unique([questionId, version])
   @@index([questionId])
 }
@@ -486,79 +505,169 @@ model Summary {
 // ============================================
 
 model User {
-  id              String    @id @default(cuid())
-  email           String?   @unique
-  displayName     String?
-  passwordHash    String?
-  authLevel       AuthLevel @default(ANONYMOUS)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
+  id           String    @id @default(cuid())
+  email        String?   @unique
+  displayName  String?
+  passwordHash String?
+  authLevel    AuthLevel @default(ANONYMOUS)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
   // Budget system
-  contributionBudget Int    @default(10)
-  qualityScore       Float  @default(0)
-  
+  contributionBudget Int   @default(10)
+  qualityScore       Float @default(0)
+
   // Relations
-  topics          Topic[]
-  subtopics       Subtopic[]
-  questions       Question[]
-  claims          Claim[]
-  measures        Measure[]
-  arguments       Argument[]
-  counterpositions Counterposition[]
-  extracts        Extract[]
-  evidenceLinks   EvidenceLink[]
-  sourceChallenges SourceChallenge[]
+  topics             Topic[]
+  subtopics          Subtopic[]
+  questions          Question[]
+  claims             Claim[]
+  measures           Measure[]
+  arguments          Argument[]
+  counterpositions   Counterposition[]
+  extracts           Extract[]
+  evidenceLinks      EvidenceLink[]
+  sourceChallenges   SourceChallenge[]
   challengeResponses ChallengeResponse[]
-  summaries       Summary[]
-  questionClaims  QuestionClaim[]
-  questionMeasures QuestionMeasure[]
-  stances         UserStance[]
-  
+  summaries          Summary[]
+  questionClaims     QuestionClaim[]
+  questionMeasures   QuestionMeasure[]
+  stances            UserStance[]
+  scopes             Scope[]
+  disagreements      Disagreement[]
+
   @@index([authLevel])
 }
 
 enum AuthLevel {
-  ANONYMOUS      // Read, suggest, vote
-  VERIFIED       // Post arguments
-  STRONG_ID      // Summaries, promote to mature
+  ANONYMOUS // Read, suggest, vote
+  VERIFIED // Post arguments
+  STRONG_ID // Summaries, promote to mature
 }
 
-// User stances per question
+// User stances per question - split into descriptive vs normative
 model UserStance {
-  id          String        @id @default(cuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questionId  String
-  position    StancePosition
-  strength    StanceStrength @default(MEDIUM)
-  reasoning   StanceReasoning
-  note        String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Split assessment: what you believe vs what you prefer
+  descriptiveAssessment DescriptiveAssessment? // What do you think is factually true?
+  normativePreference   NormativePreference? // What policy/action do you prefer?
+
+  // Justification can be multi-select
+  justifications JustificationType[] // Why do you hold this stance?
+  note           String? // Optional explanation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, questionId])
   @@index([questionId])
 }
 
-enum StancePosition {
-  AGREE
-  DISAGREE
+enum DescriptiveAssessment {
+  LIKELY_TRUE
+  POSSIBLY_TRUE
   UNCERTAIN
-  NO_POSITION
+  POSSIBLY_FALSE
+  LIKELY_FALSE
 }
 
-enum StanceStrength {
-  LOW
-  MEDIUM
-  HIGH
+enum NormativePreference {
+  STRONGLY_SUPPORT
+  SUPPORT
+  NEUTRAL
+  OPPOSE
+  STRONGLY_OPPOSE
 }
 
-enum StanceReasoning {
+enum JustificationType {
   DATA_BASED
   VALUE_BASED
   RISK_BASED
-  MIXED
+}
+
+// ============================================
+// SCOPE (Explicit scoping for content)
+// ============================================
+
+enum TemporalScope {
+  HISTORICAL // Before 2000
+  RECENT // 2000-2020
+  CURRENT // 2020-present
+  SHORT_TERM // Next 1-5 years
+  MEDIUM_TERM // 5-20 years
+  LONG_TERM // 20+ years
+  UNSPECIFIED
+}
+
+enum GeographicScope {
+  GLOBAL
+  CONTINENTAL // e.g., Europe, Asia
+  NATIONAL // Single country
+  REGIONAL // Sub-national region
+  LOCAL // City/municipality
+  UNSPECIFIED
+}
+
+model Scope {
+  id              String          @id @default(cuid())
+  temporalScope   TemporalScope   @default(UNSPECIFIED)
+  geographicScope GeographicScope @default(UNSPECIFIED)
+  systemBoundary  String // Free text: "Norwegian energy sector", "Global aviation"
+  assumptions     String? // Optional free text for key assumptions
+
+  // Polymorphic relationships (one-to-one, each entity has at most one scope)
+  questionId String?   @unique
+  question   Question? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  claimId    String?   @unique
+  claim      Claim?    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  argumentId String?   @unique
+  argument   Argument? @relation(fields: [argumentId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
+  @@index([temporalScope])
+  @@index([geographicScope])
+}
+
+// ============================================
+// DISAGREEMENT (Explicit disagreement tracking)
+// ============================================
+
+enum DisagreementType {
+  DATA // Disagreement over facts/measurements
+  INTERPRETATION // Same data, different conclusions
+  VALUES_OR_RISK // Different values or risk tolerance
+  DEFINITIONS // What terms/concepts mean
+  SCOPE // Different scope assumptions
+}
+
+model Disagreement {
+  id               String           @id @default(cuid())
+  description      String // Describe the disagreement axis
+  disagreementType DisagreementType
+
+  // Polymorphic target (one of these must be set)
+  questionId String?
+  question   Question? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  claimId    String?
+  claim      Claim?    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
+  @@index([questionId])
+  @@index([claimId])
+  @@index([disagreementType])
 }
 
 // ============================================
@@ -566,14 +675,14 @@ enum StanceReasoning {
 // ============================================
 
 model Event {
-  id          String    @id @default(cuid())
-  eventType   String    // e.g., "create_topic", "add_claim", "link_evidence"
-  entityType  String    // e.g., "Topic", "Claim", "Argument"
-  entityId    String    // ID of affected entity
-  payload     Json      // Event data
-  userId      String?   // Who triggered it
-  createdAt   DateTime  @default(now())
-  
+  id         String   @id @default(cuid())
+  eventType  String // e.g., "create_topic", "add_claim", "link_evidence"
+  entityType String // e.g., "Topic", "Claim", "Argument"
+  entityId   String // ID of affected entity
+  payload    Json // Event data
+  userId     String? // Who triggered it
+  createdAt  DateTime @default(now())
+
   @@index([eventType])
   @@index([entityType, entityId])
   @@index([userId])

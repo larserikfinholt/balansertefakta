@@ -60,7 +60,7 @@ async function main() {
       id: 'seed-claim-1',
       statement: 'Menneskelig aktivitet er den dominerende årsaken til global oppvarming siden midten av det 20. århundre',
       context: 'Basert på IPCC AR6-rapportens konklusjoner',
-      claimType: 'FACTUAL',
+      claimType: 'EMPIRICAL',
       status: 'ACCEPTED',
     },
   });
@@ -192,11 +192,51 @@ async function main() {
       id: 'seed-evidence-1',
       extractId: extract.id,
       argumentId: proArg.id,
-      supportStrength: 'STRONGLY_SUPPORTS',
+      linkageStrength: 'DIRECT',
     },
   });
 
   console.log(`✓ Linked evidence to argument`);
+
+  // Create scope for the question
+  await prisma.scope.upsert({
+    where: { questionId: question.id },
+    update: {},
+    create: {
+      questionId: question.id,
+      temporalScope: 'CURRENT',
+      geographicScope: 'GLOBAL',
+      systemBoundary: 'Global climate system and anthropogenic emissions',
+      assumptions: 'Based on current scientific understanding as of IPCC AR6',
+    },
+  });
+
+  console.log(`✓ Created scope for question`);
+
+  // Create disagreement axes
+  await prisma.disagreement.upsert({
+    where: { id: 'seed-disagreement-1' },
+    update: {},
+    create: {
+      id: 'seed-disagreement-1',
+      questionId: question.id,
+      description: 'Uenighet om hvor stor andel av oppvarmingen som skyldes menneskelig aktivitet vs naturlige faktorer',
+      disagreementType: 'DATA',
+    },
+  });
+
+  await prisma.disagreement.upsert({
+    where: { id: 'seed-disagreement-2' },
+    update: {},
+    create: {
+      id: 'seed-disagreement-2',
+      questionId: question.id,
+      description: 'Ulik tolkning av paleoklimatiske data og hva de betyr for dagens situasjon',
+      disagreementType: 'INTERPRETATION',
+    },
+  });
+
+  console.log(`✓ Created disagreement axes`);
 
   // Log events
   await prisma.event.createMany({

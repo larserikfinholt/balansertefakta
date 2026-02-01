@@ -2,7 +2,19 @@ import { builder } from '../builder.js';
 
 // Enums
 builder.enumType('ClaimType', {
-  values: ['FACTUAL', 'INTERPRETIVE', 'VALUE', 'PREDICTIVE'] as const,
+  values: ['EMPIRICAL', 'CAUSAL', 'PROGNOSTIC', 'NORMATIVE', 'DEFINITIONAL'] as const,
+});
+
+builder.enumType('TemporalScope', {
+  values: ['HISTORICAL', 'RECENT', 'CURRENT', 'SHORT_TERM', 'MEDIUM_TERM', 'LONG_TERM', 'UNSPECIFIED'] as const,
+});
+
+builder.enumType('GeographicScope', {
+  values: ['GLOBAL', 'CONTINENTAL', 'NATIONAL', 'REGIONAL', 'LOCAL', 'UNSPECIFIED'] as const,
+});
+
+builder.enumType('DisagreementType', {
+  values: ['DATA', 'INTERPRETATION', 'VALUES_OR_RISK', 'DEFINITIONS', 'SCOPE'] as const,
 });
 
 builder.enumType('ContentStatus', {
@@ -15,6 +27,37 @@ builder.enumType('ArgumentType', {
 
 builder.enumType('ArgumentStrength', {
   values: ['LOW', 'MEDIUM', 'HIGH'] as const,
+});
+
+// Scope type - explicit scoping for content
+builder.prismaObject('Scope', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    temporalScope: t.expose('temporalScope', { type: 'TemporalScope' }),
+    geographicScope: t.expose('geographicScope', { type: 'GeographicScope' }),
+    systemBoundary: t.exposeString('systemBoundary'),
+    assumptions: t.exposeString('assumptions', { nullable: true }),
+    createdAt: t.expose('createdAt', { type: 'DateTime' }),
+    updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
+    createdBy: t.relation('createdBy', { nullable: true }),
+    question: t.relation('question', { nullable: true }),
+    claim: t.relation('claim', { nullable: true }),
+    argument: t.relation('argument', { nullable: true }),
+  }),
+});
+
+// Disagreement type - explicit disagreement tracking
+builder.prismaObject('Disagreement', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    description: t.exposeString('description'),
+    disagreementType: t.expose('disagreementType', { type: 'DisagreementType' }),
+    createdAt: t.expose('createdAt', { type: 'DateTime' }),
+    updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
+    createdBy: t.relation('createdBy', { nullable: true }),
+    question: t.relation('question', { nullable: true }),
+    claim: t.relation('claim', { nullable: true }),
+  }),
 });
 
 // Claim type
@@ -30,9 +73,11 @@ builder.prismaObject('Claim', {
     createdBy: t.relation('createdBy', { nullable: true }),
     arguments: t.relation('arguments'),
     evidenceLinks: t.relation('evidenceLinks'),
+    scope: t.relation('scope', { nullable: true }),
+    disagreements: t.relation('disagreements'),
     proArgumentCount: t.exposeInt('proArgumentCount'),
     contraArgumentCount: t.exposeInt('contraArgumentCount'),
-    
+
     // Is this claim balanced (has both pro and contra)?
     isBalanced: t.boolean({
       resolve: (claim) => claim.proArgumentCount > 0 && claim.contraArgumentCount > 0,
@@ -98,6 +143,7 @@ builder.prismaObject('Argument', {
     measure: t.relation('measure', { nullable: true }),
     counterpositions: t.relation('counterpositions'),
     evidenceLinks: t.relation('evidenceLinks'),
+    scope: t.relation('scope', { nullable: true }),
   }),
 });
 
@@ -315,7 +361,7 @@ builder.mutationField('createCounterposition', (t) =>
           createdById: ctx.userId,
         },
       });
-      
+
       await ctx.prisma.event.create({
         data: {
           eventType: 'add_counterposition',
@@ -325,8 +371,165 @@ builder.mutationField('createCounterposition', (t) =>
           userId: ctx.userId,
         },
       });
-      
+
       return counterposition;
+    },
+  })
+);
+
+// Scope input types
+const SetScopeInput = builder.inputType('SetScopeInput', {
+  fields: (t) => ({
+    temporalScope: t.field({ type: 'TemporalScope' }),
+    geographicScope: t.field({ type: 'GeographicScope' }),
+    systemBoundary: t.string({ required: true }),
+    assumptions: t.string(),
+    // Target - exactly one must be provided
+    questionId: t.string(),
+    claimId: t.string(),
+    argumentId: t.string(),
+  }),
+});
+
+// Disagreement input types
+const CreateDisagreementInput = builder.inputType('CreateDisagreementInput', {
+  fields: (t) => ({
+    description: t.string({ required: true }),
+    disagreementType: t.field({ type: 'DisagreementType', required: true }),
+    // Target - exactly one must be provided
+    questionId: t.string(),
+    claimId: t.string(),
+  }),
+});
+
+// Set scope mutation
+builder.mutationField('setScope', (t) =>
+  t.prismaField({
+    type: 'Scope',
+    args: {
+      input: t.arg({ type: SetScopeInput, required: true }),
+    },
+    resolve: async (query, _root, args, ctx) => {
+      // Validate: must have exactly one target
+      const targets = [args.input.questionId, args.input.claimId, args.input.argumentId].filter(Boolean);
+      if (targets.length !== 1) {
+        throw new Error('Scope must be set on exactly one target (question, claim, or argument)');
+      }
+
+      // Upsert scope - create or update based on target
+      const whereClause = args.input.questionId
+        ? { questionId: args.input.questionId }
+        : args.input.claimId
+          ? { claimId: args.input.claimId }
+          : { argumentId: args.input.argumentId };
+
+      const existingScope = await ctx.prisma.scope.findFirst({
+        where: whereClause,
+      });
+
+      let scope;
+      if (existingScope) {
+        scope = await ctx.prisma.scope.update({
+          ...query,
+          where: { id: existingScope.id },
+          data: {
+            temporalScope: args.input.temporalScope ?? 'UNSPECIFIED',
+            geographicScope: args.input.geographicScope ?? 'UNSPECIFIED',
+            systemBoundary: args.input.systemBoundary,
+            assumptions: args.input.assumptions,
+          },
+        });
+      } else {
+        scope = await ctx.prisma.scope.create({
+          ...query,
+          data: {
+            temporalScope: args.input.temporalScope ?? 'UNSPECIFIED',
+            geographicScope: args.input.geographicScope ?? 'UNSPECIFIED',
+            systemBoundary: args.input.systemBoundary,
+            assumptions: args.input.assumptions,
+            questionId: args.input.questionId,
+            claimId: args.input.claimId,
+            argumentId: args.input.argumentId,
+            createdById: ctx.userId,
+          },
+        });
+      }
+
+      await ctx.prisma.event.create({
+        data: {
+          eventType: existingScope ? 'update_scope' : 'set_scope',
+          entityType: 'Scope',
+          entityId: scope.id,
+          payload: args.input,
+          userId: ctx.userId,
+        },
+      });
+
+      return scope;
+    },
+  })
+);
+
+// Create disagreement mutation
+builder.mutationField('createDisagreement', (t) =>
+  t.prismaField({
+    type: 'Disagreement',
+    args: {
+      input: t.arg({ type: CreateDisagreementInput, required: true }),
+    },
+    resolve: async (query, _root, args, ctx) => {
+      // Validate: must have exactly one target
+      const targets = [args.input.questionId, args.input.claimId].filter(Boolean);
+      if (targets.length !== 1) {
+        throw new Error('Disagreement must be attached to exactly one target (question or claim)');
+      }
+
+      const disagreement = await ctx.prisma.disagreement.create({
+        ...query,
+        data: {
+          description: args.input.description,
+          disagreementType: args.input.disagreementType,
+          questionId: args.input.questionId,
+          claimId: args.input.claimId,
+          createdById: ctx.userId,
+        },
+      });
+
+      await ctx.prisma.event.create({
+        data: {
+          eventType: 'create_disagreement',
+          entityType: 'Disagreement',
+          entityId: disagreement.id,
+          payload: args.input,
+          userId: ctx.userId,
+        },
+      });
+
+      return disagreement;
+    },
+  })
+);
+
+// Query for disagreements on a question
+builder.queryField('disagreements', (t) =>
+  t.prismaField({
+    type: ['Disagreement'],
+    args: {
+      questionId: t.arg.string(),
+      claimId: t.arg.string(),
+      type: t.arg({ type: 'DisagreementType' }),
+    },
+    resolve: (query, _root, args, ctx) => {
+      const where: Record<string, unknown> = {};
+      if (args.questionId) where.questionId = args.questionId;
+      if (args.claimId) where.claimId = args.claimId;
+      if (args.type) where.disagreementType = args.type;
+
+      return ctx.prisma.disagreement.findMany({
+        ...query,
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
     },
   })
 );

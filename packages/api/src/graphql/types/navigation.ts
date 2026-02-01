@@ -34,6 +34,27 @@ builder.enumType('QuestionStatus', {
   values: ['DRAFT', 'OPEN', 'BALANCED', 'MATURE', 'ARCHIVED'] as const,
 });
 
+// MaturityChecklist type - computed completeness tracking
+const MaturityChecklist = builder.objectRef<{
+  hasScope: boolean;
+  hasDisagreementAxis: boolean;
+  hasProArguments: boolean;
+  hasContraArguments: boolean;
+  hasSupportingEvidence: boolean;
+  hasChallengingEvidence: boolean;
+  completenessScore: number;
+}>('MaturityChecklist').implement({
+  fields: (t) => ({
+    hasScope: t.exposeBoolean('hasScope'),
+    hasDisagreementAxis: t.exposeBoolean('hasDisagreementAxis'),
+    hasProArguments: t.exposeBoolean('hasProArguments'),
+    hasContraArguments: t.exposeBoolean('hasContraArguments'),
+    hasSupportingEvidence: t.exposeBoolean('hasSupportingEvidence'),
+    hasChallengingEvidence: t.exposeBoolean('hasChallengingEvidence'),
+    completenessScore: t.exposeInt('completenessScore'),
+  }),
+});
+
 // Question type
 builder.prismaObject('Question', {
   fields: (t) => ({
@@ -49,7 +70,10 @@ builder.prismaObject('Question', {
     claims: t.relation('questionClaims'),
     measures: t.relation('questionMeasures'),
     summaries: t.relation('summaries'),
-    
+    scope: t.relation('scope', { nullable: true }),
+    disagreements: t.relation('disagreements'),
+    stances: t.relation('stances'),
+
     // Computed field: is this question balanced?
     isBalanced: t.boolean({
       resolve: async (question, _args, ctx) => {
@@ -57,7 +81,7 @@ builder.prismaObject('Question', {
           where: { questionId: question.id },
           include: { claim: true },
         });
-        
+
         // Check if all linked claims have both pro and contra arguments
         for (const qc of claims) {
           if (qc.claim.proArgumentCount === 0 || qc.claim.contraArgumentCount === 0) {
@@ -65,6 +89,76 @@ builder.prismaObject('Question', {
           }
         }
         return claims.length > 0;
+      },
+    }),
+
+    // Maturity checklist - shows what's needed for MATURE status
+    maturityChecklist: t.field({
+      type: MaturityChecklist,
+      resolve: async (question, _args, ctx) => {
+        // Check scope
+        const scope = await ctx.prisma.scope.findUnique({
+          where: { questionId: question.id },
+        });
+        const hasScope = !!scope;
+
+        // Check disagreement axes
+        const disagreementCount = await ctx.prisma.disagreement.count({
+          where: { questionId: question.id },
+        });
+        const hasDisagreementAxis = disagreementCount > 0;
+
+        // Check arguments via claims
+        const claims = await ctx.prisma.questionClaim.findMany({
+          where: { questionId: question.id },
+          include: {
+            claim: {
+              include: {
+                arguments: true,
+                evidenceLinks: true,
+              },
+            },
+          },
+        });
+
+        let hasProArguments = false;
+        let hasContraArguments = false;
+        let hasSupportingEvidence = false;
+        let hasChallengingEvidence = false;
+
+        for (const qc of claims) {
+          if (qc.claim.proArgumentCount > 0) hasProArguments = true;
+          if (qc.claim.contraArgumentCount > 0) hasContraArguments = true;
+
+          for (const link of qc.claim.evidenceLinks) {
+            if (link.linkageStrength === 'DIRECT' || link.linkageStrength === 'INDIRECT') {
+              hasSupportingEvidence = true;
+            }
+            if (link.linkageStrength === 'MISUSED_OR_NOT_SUPPORTING') {
+              hasChallengingEvidence = true;
+            }
+          }
+        }
+
+        // Calculate completeness score
+        const completenessScore = [
+          hasScope,
+          hasDisagreementAxis,
+          hasProArguments,
+          hasContraArguments,
+          hasSupportingEvidence,
+          hasChallengingEvidence,
+        ].filter(Boolean).length;
+
+        return {
+          hasScope,
+          hasDisagreementAxis,
+          hasProArguments,
+          hasContraArguments,
+          hasSupportingEvidence,
+          hasChallengingEvidence,
+          completenessScore,
+        };
       },
     }),
   }),
