@@ -67,6 +67,39 @@ export const GET_QUESTION = gql`
               id
               content
             }
+            evidenceLinks {
+              id
+              supportStrength
+              isChallenged
+              challenges {
+                id
+                challengeType
+                description
+                status
+              }
+              extract {
+                id
+                content
+                extractType
+                pageNumber
+                artifact {
+                  id
+                  title
+                  url
+                  artifactType
+                  publishedAt
+                  authors
+                  outlet {
+                    name
+                    domain {
+                      name
+                      hostname
+                      credibilityScore
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -141,6 +174,17 @@ export const ME = gql`
       email
       displayName
       authLevel
+    }
+  }
+`;
+
+export const CHALLENGE_SOURCE = gql`
+  mutation ChallengeSource($input: ChallengeSourceInput!) {
+    challengeSource(input: $input) {
+      id
+      challengeType
+      description
+      status
     }
   }
 `;

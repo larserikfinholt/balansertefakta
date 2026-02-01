@@ -13,7 +13,20 @@
       "Bash(pnpm db:seed:*)",
       "Bash(npx prisma db seed:*)",
       "Bash(npx tsx:*)",
-      "Bash(pnpm build)"
+      "Bash(pnpm build)",
+      "Bash(pnpm --filter @balansertefakta/web typecheck:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm dev)",
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(netstat:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_select_option",
+      "mcp__plugin_playwright_playwright__browser_type",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_close"
     ]
   }
 }

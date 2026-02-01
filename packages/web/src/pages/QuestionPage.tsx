@@ -1,6 +1,7 @@
 import { useQuery } from '@apollo/client';
 import { useParams, Link } from 'react-router-dom';
 import { GET_QUESTION } from '../lib/queries';
+import { EvidenceSection, type EvidenceLinkWithArtifact } from '../components/EvidenceSection';
 
 const styles = {
   breadcrumb: {
@@ -116,6 +117,7 @@ interface Argument {
   argumentType: 'PRO' | 'CONTRA';
   strength: string;
   counterpositions: Counterposition[];
+  evidenceLinks: EvidenceLinkWithArtifact[];
 }
 
 interface Claim {
@@ -197,6 +199,10 @@ export function QuestionPage() {
                           Motposisjon: {cp.content}
                         </div>
                       ))}
+                      <EvidenceSection
+                        evidenceLinks={arg.evidenceLinks}
+                        argumentId={arg.id}
+                      />
                     </div>
                   ))}
                 {claim.arguments.filter((a) => a.argumentType === 'PRO').length === 0 && (
@@ -216,6 +222,10 @@ export function QuestionPage() {
                           Motposisjon: {cp.content}
                         </div>
                       ))}
+                      <EvidenceSection
+                        evidenceLinks={arg.evidenceLinks}
+                        argumentId={arg.id}
+                      />
                     </div>
                   ))}
                 {claim.arguments.filter((a) => a.argumentType === 'CONTRA').length === 0 && (
