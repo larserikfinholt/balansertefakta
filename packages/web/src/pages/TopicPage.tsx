@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { useParams, Link } from 'react-router-dom';
 import { GET_TOPIC } from '../lib/queries';
+import { useAuth } from '../context/AuthContext';
+import { CreateSubtopicModal } from '../components/CreateSubtopicModal';
+import { CreateQuestionModal } from '../components/CreateQuestionModal';
 
 const styles = {
   breadcrumb: {
@@ -12,9 +16,24 @@ const styles = {
     color: '#1a1a2e',
     textDecoration: 'none',
   },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '0.5rem',
+  },
   title: {
     fontSize: '2rem',
-    marginBottom: '0.5rem',
+    margin: 0,
+  },
+  addButton: {
+    padding: '0.5rem 1rem',
+    background: '#1a1a2e',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
   },
   description: {
     marginBottom: '2rem',
@@ -27,14 +46,30 @@ const styles = {
     marginBottom: '1.5rem',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
+  subtopicHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem',
+  },
   subtopicTitle: {
     fontSize: '1.25rem',
-    marginBottom: '1rem',
+    margin: 0,
     color: '#1a1a2e',
+  },
+  smallButton: {
+    padding: '0.35rem 0.75rem',
+    background: 'transparent',
+    color: '#1a1a2e',
+    border: '1px solid #1a1a2e',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
   },
   questionList: {
     listStyle: 'none',
     padding: 0,
+    margin: 0,
   },
   questionItem: {
     padding: '0.75rem 0',
@@ -66,6 +101,11 @@ const styles = {
     padding: '2rem',
     color: '#666',
   },
+  emptyState: {
+    color: '#666',
+    fontSize: '0.9rem',
+    fontStyle: 'italic' as const,
+  },
 };
 
 interface Question {
@@ -94,6 +134,10 @@ interface Topic {
 
 export function TopicPage() {
   const { slug } = useParams<{ slug: string }>();
+  const { isAuthenticated, user } = useAuth();
+  const [showSubtopicModal, setShowSubtopicModal] = useState(false);
+  const [showQuestionModal, setShowQuestionModal] = useState<string | null>(null);
+
   const { data, loading, error } = useQuery<{ topic: Topic | null }>(GET_TOPIC, {
     variables: { slug },
   });
@@ -103,21 +147,39 @@ export function TopicPage() {
   if (!data?.topic) return <div style={styles.loading}>Tema ikke funnet</div>;
 
   const { topic } = data;
+  const isVerified = user?.authLevel === 'VERIFIED' || user?.authLevel === 'STRONG_ID';
 
   return (
     <div>
       <div style={styles.breadcrumb}>
-        <Link to="/" style={styles.breadcrumbLink}>Hjem</Link> / {topic.title}
+        <Link to="/" style={styles.breadcrumbLink}>
+          Hjem
+        </Link>{' '}
+        / {topic.title}
       </div>
-      
-      <h1 style={styles.title}>{topic.title}</h1>
+
+      <div style={styles.header}>
+        <h1 style={styles.title}>{topic.title}</h1>
+        {isAuthenticated && isVerified && (
+          <button style={styles.addButton} onClick={() => setShowSubtopicModal(true)}>
+            + Opprett undertema
+          </button>
+        )}
+      </div>
       {topic.description && <p style={styles.description}>{topic.description}</p>}
 
       {topic.subtopics.map((subtopic) => (
         <div key={subtopic.id} style={styles.subtopic}>
-          <h2 style={styles.subtopicTitle}>{subtopic.title}</h2>
-          {subtopic.description && <p style={styles.description}>{subtopic.description}</p>}
-          
+          <div style={styles.subtopicHeader}>
+            <h2 style={styles.subtopicTitle}>{subtopic.title}</h2>
+            {isAuthenticated && isVerified && (
+              <button style={styles.smallButton} onClick={() => setShowQuestionModal(subtopic.id)}>
+                + Sporsmal
+              </button>
+            )}
+          </div>
+          {subtopic.description && <p style={{ ...styles.description, marginBottom: '1rem' }}>{subtopic.description}</p>}
+
           <ul style={styles.questionList}>
             {subtopic.questions.map((question) => (
               <li key={question.id} style={styles.questionItem}>
@@ -132,15 +194,27 @@ export function TopicPage() {
               </li>
             ))}
           </ul>
-          
-          {subtopic.questions.length === 0 && (
-            <p style={styles.description}>Ingen spørsmål ennå</p>
-          )}
+
+          {subtopic.questions.length === 0 && <p style={styles.emptyState}>Ingen sporsmal enna</p>}
         </div>
       ))}
 
-      {topic.subtopics.length === 0 && (
-        <p style={styles.description}>Ingen undertemaer ennå</p>
+      {topic.subtopics.length === 0 && <p style={styles.description}>Ingen undertemaer enna</p>}
+
+      {showSubtopicModal && (
+        <CreateSubtopicModal
+          topicId={topic.id}
+          topicSlug={topic.slug}
+          onClose={() => setShowSubtopicModal(false)}
+        />
+      )}
+
+      {showQuestionModal && (
+        <CreateQuestionModal
+          subtopicId={showQuestionModal}
+          topicSlug={topic.slug}
+          onClose={() => setShowQuestionModal(null)}
+        />
       )}
     </div>
   );
