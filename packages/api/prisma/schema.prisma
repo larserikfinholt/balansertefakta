@@ -166,6 +166,12 @@ model Measure {
   // Evidence supporting this measure
   evidenceLinks EvidenceLink[]
 
+  // Explicit scope definition
+  scope Scope?
+
+  // Impact estimates
+  impacts MeasureImpact[]
+
   // Balance tracking
   proArgumentCount    Int @default(0)
   contraArgumentCount Int @default(0)
@@ -535,6 +541,7 @@ model User {
   stances            UserStance[]
   scopes             Scope[]
   disagreements      Disagreement[]
+  measureImpacts     MeasureImpact[]
 
   @@index([authLevel])
 }
@@ -627,6 +634,8 @@ model Scope {
   claim      Claim?    @relation(fields: [claimId], references: [id], onDelete: Cascade)
   argumentId String?   @unique
   argument   Argument? @relation(fields: [argumentId], references: [id], onDelete: Cascade)
+  measureId  String?   @unique
+  measure    Measure?  @relation(fields: [measureId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -635,6 +644,59 @@ model Scope {
 
   @@index([temporalScope])
   @@index([geographicScope])
+}
+
+// ============================================
+// MEASURE IMPACTS (Structured impact estimates)
+// ============================================
+
+enum ImpactCategory {
+  ECONOMIC // Cost, revenue, GDP impact
+  ENVIRONMENTAL // Emissions, biodiversity, pollution
+  SOCIAL // Health, equality, jobs, education
+  PRACTICAL // Implementation time, complexity, feasibility
+  OTHER
+}
+
+enum Confidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model MeasureImpact {
+  id          String          @id @default(cuid())
+  measureId   String
+  measure     Measure         @relation(fields: [measureId], references: [id], onDelete: Cascade)
+  
+  // Flexible metric definition
+  metricName  String // Free text: "CO₂-reduksjon", "Kostnad", "Sysselsetting", etc.
+  category    ImpactCategory? // Optional broad categorization
+  
+  // Quantitative values
+  value       Float?
+  unit        String? // "tonn", "NOK", "årsverk", "dager"
+  rangeLow    Float? // For uncertainty ranges
+  rangeHigh   Float?
+  
+  // Qualitative values
+  valueText   String? // For non-numeric impacts: "Moderat økning", "Ukjent"
+  
+  // Confidence and timing
+  confidence  Confidence      @default(MEDIUM)
+  timeHorizon TemporalScope?
+  
+  // Attribution
+  source      String? // Brief source description
+  assumptions String? // Key assumptions behind this estimate
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
+  @@index([measureId])
+  @@index([category])
 }
 
 // ============================================

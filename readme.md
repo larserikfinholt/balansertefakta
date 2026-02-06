@@ -208,32 +208,30 @@ enum LinkageStrength {
 }
 
 enum TemporalScope {
-  PRE_1900
-  EARLY_20TH_CENTURY
-  MID_20TH_CENTURY
-  LATE_20TH_CENTURY
-  EARLY_21ST_CENTURY
-  CURRENT
-  NEAR_FUTURE
-  FAR_FUTURE
-  TIMELESS
+  HISTORICAL      // Before 2000
+  RECENT          // 2000-2020
+  CURRENT         // 2020-present
+  SHORT_TERM      // Next 1-5 years
+  MEDIUM_TERM     // 5-20 years
+  LONG_TERM       // 20+ years
+  UNSPECIFIED
 }
 
 enum GeographicScope {
   GLOBAL
-  CONTINENTAL
-  NATIONAL
-  REGIONAL
-  LOCAL
-  SITE_SPECIFIC
+  CONTINENTAL     // e.g., Europe, Asia
+  NATIONAL        // Single country
+  REGIONAL        // Sub-national region
+  LOCAL           // City/municipality
+  UNSPECIFIED
 }
 
 enum DisagreementType {
-  DATA_DISAGREEMENT
-  INTERPRETATION_DISAGREEMENT
-  VALUE_DISAGREEMENT
-  DEFINITIONAL_DISAGREEMENT
-  SCOPE_DISAGREEMENT
+  DATA            // Disagreement over facts/measurements
+  INTERPRETATION  // Same data, different conclusions
+  VALUES_OR_RISK  // Different values or risk tolerance
+  DEFINITIONS     // What terms/concepts mean
+  SCOPE           // Different scope assumptions
 }
 ```
 
