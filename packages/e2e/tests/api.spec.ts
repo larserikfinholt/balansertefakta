@@ -1,5 +1,8 @@
 import { test, expect, request } from '@playwright/test';
 
+// API tests modify shared database state (user credits, validations) and must run serially
+test.describe.configure({ mode: 'serial' });
+
 const API_URL = 'http://localhost:4000';
 
 // Helper function to login and get auth token
@@ -11,8 +14,8 @@ async function loginUser(email: string, password: string): Promise<string> {
   const response = await apiContext.post('/graphql', {
     data: {
       query: `
-        mutation Login($email: String!, $password: String!) {
-          login(email: $email, password: $password) {
+        mutation Login($input: LoginInput!) {
+          login(input: $input) {
             token
             user {
               id
@@ -21,7 +24,7 @@ async function loginUser(email: string, password: string): Promise<string> {
           }
         }
       `,
-      variables: { email, password },
+      variables: { input: { email, password } },
     },
   });
 
@@ -91,18 +94,44 @@ test.describe('GraphQL API', () => {
   });
 
   test('should create a claim with pro and contra arguments', async () => {
-    // Login first
-    const token = await loginUser('vegard@test.no', 'password123');
-    
-    const apiContext = await request.newContext({
-      baseURL: API_URL,
-      extraHTTPHeaders: {
-        Authorization: `Bearer ${token}`,
+    // Register a fresh user to avoid state conflicts across test runs
+    const apiContext = await request.newContext({ baseURL: API_URL });
+    const email = `test-balance-full-${Date.now()}@test.no`;
+    const regResponse = await apiContext.post('/graphql', {
+      data: {
+        query: `mutation Register($input: RegisterInput!) { register(input: $input) { token } }`,
+        variables: { input: { email, password: 'password123', displayName: 'Balance Tester' } },
       },
     });
+    const token = (await regResponse.json()).data.register.token;
+
+    const authedContext = await request.newContext({
+      baseURL: API_URL,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    });
+
+    // Validate content to earn 7 credits and meet opposing validation requirements
+    // Need: 2 CONTRA arg validations (for PRO), 2 PRO arg validations (for CONTRA), 3 more for credits
+    const setupTargets = [
+      { argumentId: 'seed-arg-contra-1', validationType: 'CONFIRMED', comment: 'Setup' },
+      { argumentId: 'seed-arg-contra-2', validationType: 'CONFIRMED', comment: 'Setup' },
+      { argumentId: 'seed-arg-pro-1', validationType: 'CONFIRMED', comment: 'Setup' },
+      { argumentId: 'seed-arg-pro-2', validationType: 'CONFIRMED', comment: 'Setup' },
+      { claimId: 'seed-claim-3', validationType: 'CONFIRMED', comment: 'Setup' },
+      { claimId: 'seed-claim-4', validationType: 'CONFIRMED', comment: 'Setup' },
+      { claimId: 'seed-claim-5', validationType: 'CONFIRMED', comment: 'Setup' },
+    ];
+    for (const target of setupTargets) {
+      await authedContext.post('/graphql', {
+        data: {
+          query: `mutation CreateValidation($input: CreateValidationInput!) { createValidation(input: $input) { id } }`,
+          variables: { input: target },
+        },
+      });
+    }
 
     // 1. Create a claim
-    const claimResponse = await apiContext.post('/graphql', {
+    const claimResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           mutation CreateClaim($input: CreateClaimInput!) {
@@ -128,11 +157,12 @@ test.describe('GraphQL API', () => {
 
     expect(claimResponse.ok()).toBeTruthy();
     const claimJson = await claimResponse.json();
+    expect(claimJson.errors).toBeUndefined();
     const claimId = claimJson.data.createClaim.id;
     expect(claimJson.data.createClaim.isBalanced).toBe(false);
 
     // 2. Add a PRO argument
-    const proResponse = await apiContext.post('/graphql', {
+    const proResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           mutation CreateArgument($input: CreateArgumentInput!) {
@@ -155,9 +185,11 @@ test.describe('GraphQL API', () => {
     });
 
     expect(proResponse.ok()).toBeTruthy();
+    const proJson = await proResponse.json();
+    expect(proJson.errors).toBeUndefined();
 
     // 3. Add a CONTRA argument
-    const contraResponse = await apiContext.post('/graphql', {
+    const contraResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           mutation CreateArgument($input: CreateArgumentInput!) {
@@ -180,9 +212,11 @@ test.describe('GraphQL API', () => {
     });
 
     expect(contraResponse.ok()).toBeTruthy();
+    const contraJson = await contraResponse.json();
+    expect(contraJson.errors).toBeUndefined();
 
     // 4. Verify the claim is now balanced
-    const verifyResponse = await apiContext.post('/graphql', {
+    const verifyResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           query GetClaim($id: String!) {
@@ -234,12 +268,41 @@ test.describe('GraphQL API', () => {
 
 test.describe('Balance Enforcement', () => {
   test('claim should not be balanced without both argument types', async () => {
-    const apiContext = await request.newContext({
+    // Register a fresh user to avoid state conflicts
+    const apiContext = await request.newContext({ baseURL: API_URL });
+    const email = `test-unbalanced-${Date.now()}@test.no`;
+    const regResponse = await apiContext.post('/graphql', {
+      data: {
+        query: `mutation Register($input: RegisterInput!) { register(input: $input) { token } }`,
+        variables: { input: { email, password: 'password123', displayName: 'Unbalanced Tester' } },
+      },
+    });
+    const token = (await regResponse.json()).data.register.token;
+
+    const authedContext = await request.newContext({
       baseURL: API_URL,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
     });
 
+    // Validate content to earn credits: need 5 (claim=3, arg=2), need 2 CONTRA validations for PRO arg
+    const setupTargets = [
+      { argumentId: 'seed-arg-contra-5', validationType: 'CONFIRMED', comment: 'Setup' },
+      { argumentId: 'seed-arg-contra-6', validationType: 'CONFIRMED', comment: 'Setup' },
+      { claimId: 'seed-claim-3', validationType: 'CONFIRMED', comment: 'Setup' },
+      { claimId: 'seed-claim-4', validationType: 'CONFIRMED', comment: 'Setup' },
+      { claimId: 'seed-claim-5', validationType: 'CONFIRMED', comment: 'Setup' },
+    ];
+    for (const target of setupTargets) {
+      await authedContext.post('/graphql', {
+        data: {
+          query: `mutation CreateValidation($input: CreateValidationInput!) { createValidation(input: $input) { id } }`,
+          variables: { input: target },
+        },
+      });
+    }
+
     // Create a claim with only PRO argument
-    const claimResponse = await apiContext.post('/graphql', {
+    const claimResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           mutation CreateClaim($input: CreateClaimInput!) {
@@ -258,10 +321,12 @@ test.describe('Balance Enforcement', () => {
       },
     });
 
-    const claimId = (await claimResponse.json()).data.createClaim.id;
+    const claimJson = await claimResponse.json();
+    expect(claimJson.errors).toBeUndefined();
+    const claimId = claimJson.data.createClaim.id;
 
     // Add only PRO argument
-    await apiContext.post('/graphql', {
+    await authedContext.post('/graphql', {
       data: {
         query: `
           mutation CreateArgument($input: CreateArgumentInput!) {
@@ -281,7 +346,7 @@ test.describe('Balance Enforcement', () => {
     });
 
     // Verify still unbalanced
-    const verifyResponse = await apiContext.post('/graphql', {
+    const verifyResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           query GetClaim($id: String!) {
@@ -303,17 +368,24 @@ test.describe('Balance Enforcement', () => {
   });
 
   test('should create validation and earn credits', async () => {
-    const token = await loginUser('vegard@test.no', 'password123');
-    
-    const apiContext = await request.newContext({
-      baseURL: API_URL,
-      extraHTTPHeaders: {
-        Authorization: `Bearer ${token}`,
+    // Register a fresh user to get clean initial state
+    const apiContext = await request.newContext({ baseURL: API_URL });
+    const email = `test-validation-${Date.now()}@test.no`;
+    const regResponse = await apiContext.post('/graphql', {
+      data: {
+        query: `mutation Register($input: RegisterInput!) { register(input: $input) { token } }`,
+        variables: { input: { email, password: 'password123', displayName: 'Validation Tester' } },
       },
     });
+    const token = (await regResponse.json()).data.register.token;
 
-    // Get initial credits
-    const statusBefore = await apiContext.post('/graphql', {
+    const authedContext = await request.newContext({
+      baseURL: API_URL,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    });
+
+    // Get initial credits (should be 0 for fresh user)
+    const statusBefore = await authedContext.post('/graphql', {
       data: {
         query: `
           query {
@@ -330,27 +402,11 @@ test.describe('Balance Enforcement', () => {
     const initialCredits = statusBeforeJson.data.myStatus.validationCredits;
     const initialValidations = statusBeforeJson.data.myStatus.totalValidations;
 
-    // Get a claim from seed data to validate
-    const claimsResponse = await apiContext.post('/graphql', {
-      data: {
-        query: `
-          query {
-            claims(status: ACCEPTED) {
-              id
-              statement
-            }
-          }
-        `,
-      },
-    });
+    expect(initialCredits).toBe(0);
+    expect(initialValidations).toBe(0);
 
-    const claimsJson = await claimsResponse.json();
-    const claimToValidate = claimsJson.data.claims.find((c: any) => 
-      c.statement.includes('Global temperatures')
-    );
-
-    // Create validation
-    const validationResponse = await apiContext.post('/graphql', {
+    // Create validation on a seed claim
+    const validationResponse = await authedContext.post('/graphql', {
       data: {
         query: `
           mutation CreateValidation($input: CreateValidationInput!) {
@@ -363,7 +419,7 @@ test.describe('Balance Enforcement', () => {
         `,
         variables: {
           input: {
-            claimId: claimToValidate.id,
+            claimId: 'seed-claim-1',
             validationType: 'CONFIRMED',
             comment: 'This is well supported by scientific evidence',
           },
@@ -376,7 +432,7 @@ test.describe('Balance Enforcement', () => {
     expect(validationJson.data.createValidation.validationType).toBe('CONFIRMED');
 
     // Verify credits increased
-    const statusAfter = await apiContext.post('/graphql', {
+    const statusAfter = await authedContext.post('/graphql', {
       data: {
         query: `
           query {
@@ -404,16 +460,18 @@ test.describe('Balance Enforcement', () => {
     await apiContext.post('/graphql', {
       data: {
         query: `
-          mutation Register($email: String!, $password: String!, $displayName: String!) {
-            register(email: $email, password: $password, displayName: $displayName) {
+          mutation Register($input: RegisterInput!) {
+            register(input: $input) {
               token
             }
           }
         `,
         variables: {
-          email,
-          password: 'password123',
-          displayName: 'Test User',
+          input: {
+            email,
+            password: 'password123',
+            displayName: 'Test User',
+          },
         },
       },
     });
@@ -453,32 +511,34 @@ test.describe('Balance Enforcement', () => {
   });
 
   test('should reject publishing without opposing validations', async () => {
-    // Create a new user
+    // Create a new user and give them credits by validating claims (not arguments)
     const apiContext = await request.newContext({
       baseURL: API_URL,
     });
 
-    const email = `test-${Date.now()}@test.no`;
+    const email = `test-opposing-${Date.now()}@test.no`;
     const registerResponse = await apiContext.post('/graphql', {
       data: {
         query: `
-          mutation Register($email: String!, $password: String!, $displayName: String!) {
-            register(email: $email, password: $password, displayName: $displayName) {
+          mutation Register($input: RegisterInput!) {
+            register(input: $input) {
               token
             }
           }
         `,
         variables: {
-          email,
-          password: 'password123',
-          displayName: 'Test User 2',
+          input: {
+            email,
+            password: 'password123',
+            displayName: 'Test User Opposing',
+          },
         },
       },
     });
 
     const registerJson = await registerResponse.json();
     const token = registerJson.data.register.token;
-    
+
     const authedContext = await request.newContext({
       baseURL: API_URL,
       extraHTTPHeaders: {
@@ -486,30 +546,50 @@ test.describe('Balance Enforcement', () => {
       },
     });
 
-    // Manually give user credits (simulate having validated to get credits)
-    // In real scenario, user would validate 2+ pieces of content
-    // For now, try creating claim which should fail on validation count
+    // Get accepted claims to validate
+    const claimsResponse = await authedContext.post('/graphql', {
+      data: {
+        query: `query { claims(status: ACCEPTED) { id } }`,
+      },
+    });
+    const claims = (await claimsResponse.json()).data.claims;
 
-    const claimResponse = await authedContext.post('/graphql', {
+    // Validate 2 claims to earn credits (2 credits, enough for argument cost of 2)
+    await authedContext.post('/graphql', {
+      data: {
+        query: `mutation CreateValidation($input: CreateValidationInput!) { createValidation(input: $input) { id } }`,
+        variables: { input: { claimId: claims[0].id, validationType: 'CONFIRMED', comment: 'Test' } },
+      },
+    });
+
+    await authedContext.post('/graphql', {
+      data: {
+        query: `mutation CreateValidation($input: CreateValidationInput!) { createValidation(input: $input) { id } }`,
+        variables: { input: { claimId: claims[1].id, validationType: 'CONFIRMED', comment: 'Test' } },
+      },
+    });
+
+    // Try to create a PRO argument - user has credits but no CONTRA argument validations
+    const argResponse = await authedContext.post('/graphql', {
       data: {
         query: `
-          mutation CreateClaim($input: CreateClaimInput!) {
-            createClaim(input: $input) {
+          mutation CreateArgument($input: CreateArgumentInput!) {
+            createArgument(input: $input) {
               id
             }
           }
         `,
         variables: {
           input: {
-            statement: 'Another test claim',
-            context: 'Test',
-            claimType: 'EMPIRICAL',
+            content: 'Test argument without opposing validations',
+            argumentType: 'PRO',
+            claimId: claims[0].id,
           },
         },
       },
     });
 
-    const json = await claimResponse.json();
+    const json = await argResponse.json();
     expect(json.errors).toBeDefined();
     expect(json.errors[0].message).toContain('must validate at least');
   });
@@ -539,7 +619,7 @@ test.describe('Balance Enforcement', () => {
           }
         `,
         variables: {
-          contentType: 'claim',
+          contentType: 'CLAIM',
         },
       },
     });
@@ -624,7 +704,7 @@ test.describe('Balance Enforcement', () => {
 
     const json = await validationResponse.json();
     expect(json.errors).toBeDefined();
-    expect(json.errors[0].message).toContain('Must be authenticated');
+    expect(json.errors[0].message).toContain('innlogget');
   });
 
   test('validation requires exactly one target', async () => {
@@ -658,6 +738,6 @@ test.describe('Balance Enforcement', () => {
 
     const json = await response.json();
     expect(json.errors).toBeDefined();
-    expect(json.errors[0].message).toContain('exactly one target');
+    expect(json.errors[0].message).toContain('nøyaktig ett mål');
   });
 });
