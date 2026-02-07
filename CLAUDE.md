@@ -141,6 +141,14 @@ packages/
 - **IDs**: CUID (not UUID)
 - **ESM imports**: Use `.js` extension for local imports (tsx/ts → js in dist)
 
+## Common Pitfalls
+
+**ALWAYS check schema.prisma before implementing:**
+- Database port is **5433** (not 5432) - see docker-compose.yml
+- Field types: `PublishingRule.ruleValue` is `Int`, not `String`
+- Field names: `Validation.comment` (not `rationale`)
+- Verify exact field names in Prisma schema before writing seed data or GraphQL types
+
 ## Database Setup
 
 ```bash
@@ -157,10 +165,16 @@ JWT_SECRET="dev-secret-change-in-production"
 ```
 
 ### Test Users (seeded)
-| User | Email | Password |
-|------|-------|----------|
-| Venstre-Vegard | vegard@test.no | password123 |
-| Høyre-Henrik | henrik@test.no | password123 |
+| User | Email | Password | Credits |
+|------|-------|----------|----------|
+| Venstre-Vegard | vegard@test.no | password123 | 5 |
+| Høyre-Henrik | henrik@test.no | password123 | 8 |
+
+### Validation System
+- Users earn `validationCredits` by validating content (+1 per validation)
+- Publishing costs: Claim (3 credits), Argument (2 credits)
+- Must validate ≥2 opposing-type content before publishing
+- ValidationType: `CONFIRMED | CHALLENGED | NUANCED`
 
 ## GraphQL Development
 

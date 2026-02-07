@@ -368,15 +368,35 @@ Moderasjon fokuserer på *form*, ikke mening:
 
 ---
 
-## 12. Brukerbegrensninger
+## 12. Validerings- og publiseringssystem
 
-* Brukere har et diskusjons- og bidragsbudsjett
-* Budsjettet øker med dokumentert kvalitetsbidrag
-* Kvalitet vurderes av:
+### 12.1 Valideringskreditter
 
-  * Andre brukere
-  * Moderasjon
-  * Historisk presisjon
+* Brukere starter med 0 `validationCredits`
+* Kreditter tjenes ved å validere andres innhold (+1 per validering)
+* Kreditter brukes ved publisering:
+  * Påstand (Claim): 3 kreditter
+  * Argument: 2 kreditter
+
+### 12.2 Valideringstyper
+
+* **CONFIRMED**: Innholdet er godt støttet av bevis
+* **CHALLENGED**: Innholdet har svakheter eller feil
+* **NUANCED**: Innholdet er delvis riktig, men trenger nyansering
+
+### 12.3 Publiseringskrav
+
+* Minimum 2 valideringer av motposisjoner før publisering
+* For PRO-argumenter: må validere ≥2 CONTRA-argumenter først
+* For CONTRA-argumenter: må validere ≥2 PRO-argumenter først
+* Reglene er konfigurerbare via `PublishingRule`-modellen
+
+### 12.4 Kildeoppsummeringer
+
+Artifacts kan ha versjonerte oppsummeringer (`ArtifactSummary`) med:
+* Hovedinnhold og nøkkelfunn
+* Begrensninger
+* Full revisjonshistorikk (`ArtifactSummaryRevision`)
 
 ---
 

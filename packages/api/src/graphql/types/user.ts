@@ -20,8 +20,9 @@ builder.prismaObject('User', {
     displayName: t.exposeString('displayName', { nullable: true }),
     authLevel: t.exposeString('authLevel'),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
-    contributionBudget: t.exposeInt('contributionBudget'),
+    validationCredits: t.exposeInt('validationCredits'),
     qualityScore: t.exposeFloat('qualityScore'),
+    validations: t.relation('validations'),
   }),
 });
 

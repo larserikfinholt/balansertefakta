@@ -233,6 +233,48 @@ builder.mutationField('createClaim', (t) =>
       input: t.arg({ type: CreateClaimInput, required: true }),
     },
     resolve: async (query, _root, args, ctx) => {
+      // Check authentication
+      if (!ctx.userId) {
+        throw new Error('Must be authenticated to create a claim');
+      }
+
+      // Fetch publishing rules
+      const rules = await ctx.prisma.publishingRule.findMany();
+      const getRuleValue = (key: string, defaultValue: number): number => {
+        const rule = rules.find((r) => r.ruleKey === key);
+        return rule ? parseInt(rule.ruleValue) : defaultValue;
+      };
+
+      const creditsPerClaim = getRuleValue('credits_per_claim', 3);
+      const minOpposingValidations = getRuleValue('min_opposing_validations', 2);
+
+      // Fetch user with validations count
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        include: {
+          validations: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Check credits
+      if (user.validationCredits < creditsPerClaim) {
+        throw new Error(
+          `Insufficient validation credits. You need ${creditsPerClaim} credits but only have ${user.validationCredits}. Validate more content to earn credits.`
+        );
+      }
+
+      // Check opposing validations count
+      if (user.validations.length < minOpposingValidations) {
+        throw new Error(
+          `You must validate at least ${minOpposingValidations} pieces of content before publishing a claim. Current validations: ${user.validations.length}.`
+        );
+      }
+
+      // Create the claim
       const claim = await ctx.prisma.claim.create({
         ...query,
         data: {
@@ -242,13 +284,19 @@ builder.mutationField('createClaim', (t) =>
           createdById: ctx.userId,
         },
       });
+
+      // Deduct credits
+      await ctx.prisma.user.update({
+        where: { id: ctx.userId },
+        data: { validationCredits: { decrement: creditsPerClaim } },
+      });
       
       await ctx.prisma.event.create({
         data: {
           eventType: 'create_claim',
           entityType: 'Claim',
           entityId: claim.id,
-          payload: args.input,
+          payload: { ...args.input, creditsSpent: creditsPerClaim },
           userId: ctx.userId,
         },
       });
@@ -296,12 +344,60 @@ builder.mutationField('createArgument', (t) =>
       input: t.arg({ type: CreateArgumentInput, required: true }),
     },
     resolve: async (query, _root, args, ctx) => {
+      // Check authentication
+      if (!ctx.userId) {
+        throw new Error('Must be authenticated to create an argument');
+      }
+
       // Validate: must have exactly one of claimId or measureId
       if (!args.input.claimId && !args.input.measureId) {
         throw new Error('Argument must be attached to either a claim or measure');
       }
       if (args.input.claimId && args.input.measureId) {
         throw new Error('Argument cannot be attached to both a claim and measure');
+      }
+
+      // Fetch publishing rules
+      const rules = await ctx.prisma.publishingRule.findMany();
+      const getRuleValue = (key: string, defaultValue: number): number => {
+        const rule = rules.find((r) => r.ruleKey === key);
+        return rule ? rule.ruleValue : defaultValue;
+      };
+
+      const creditsPerArgument = getRuleValue('credits_per_argument', 2);
+      const minOpposingValidations = getRuleValue('min_opposing_validations', 2);
+
+      // Fetch user
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Check credits
+      if (user.validationCredits < creditsPerArgument) {
+        throw new Error(
+          `Insufficient validation credits. You need ${creditsPerArgument} credits but only have ${user.validationCredits}. Validate more content to earn credits.`
+        );
+      }
+
+      // Check opposing type validations
+      const opposingType = args.input.argumentType === 'PRO' ? 'CONTRA' : 'PRO';
+      const opposingValidationsCount = await ctx.prisma.validation.count({
+        where: {
+          userId: ctx.userId,
+          argument: {
+            argumentType: opposingType,
+          },
+        },
+      });
+
+      if (opposingValidationsCount < minOpposingValidations) {
+        throw new Error(
+          `To publish a ${args.input.argumentType} argument, you must validate at least ${minOpposingValidations} ${opposingType} arguments. Current ${opposingType} validations: ${opposingValidationsCount}.`
+        );
       }
       
       const argument = await ctx.prisma.argument.create({
@@ -314,6 +410,12 @@ builder.mutationField('createArgument', (t) =>
           measureId: args.input.measureId,
           createdById: ctx.userId,
         },
+      });
+
+      // Deduct credits
+      await ctx.prisma.user.update({
+        where: { id: ctx.userId },
+        data: { validationCredits: { decrement: creditsPerArgument } },
       });
       
       // Update argument count on the parent
@@ -336,7 +438,7 @@ builder.mutationField('createArgument', (t) =>
           eventType: 'add_argument',
           entityType: 'Argument',
           entityId: argument.id,
-          payload: args.input,
+          payload: { ...args.input, creditsSpent: creditsPerArgument },
           userId: ctx.userId,
         },
       });

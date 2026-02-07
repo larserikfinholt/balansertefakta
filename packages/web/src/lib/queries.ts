@@ -175,7 +175,7 @@ export const GET_QUESTION = gql`
           id
           title
           description
-          rationale
+          comment
           status
           isBalanced
           proArgumentCount
@@ -632,6 +632,111 @@ export const CREATE_SUMMARY = gql`
       version
       proPoints
       contraPoints
+    }
+  }
+`;
+
+// Validation queries and mutations
+export const MY_STATUS = gql`
+  query MyStatus {
+    myStatus {
+      validationCredits
+      qualityScore
+      totalValidations
+      confirmedCount
+      challengedCount
+      nuancedCount
+      publishedClaims
+      publishedArguments
+    }
+  }
+`;
+
+export const MY_VALIDATIONS = gql`
+  query MyValidations {
+    myValidations {
+      id
+      validationType
+      comment
+      createdAt
+      claim {
+        id
+        statement
+      }
+      argument {
+        id
+        content
+        argumentType
+      }
+      evidenceLink {
+        id
+      }
+    }
+  }
+`;
+
+export const CAN_PUBLISH = gql`
+  query CanPublish($contentType: String!, $argumentType: String) {
+    canPublish(contentType: $contentType, argumentType: $argumentType) {
+      allowed
+      currentCredits
+      requiredCredits
+      opposingValidationsCount
+      requiredOpposingValidations
+      reasons
+    }
+  }
+`;
+
+export const PUBLISHING_RULES = gql`
+  query PublishingRules {
+    publishingRules {
+      id
+      ruleKey
+      ruleValue
+      description
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_VALIDATION = gql`
+  mutation CreateValidation($input: CreateValidationInput!) {
+    createValidation(input: $input) {
+      id
+      validationType
+      comment
+      createdAt
+    }
+  }
+`;
+
+export const VALIDATIONS_FOR_CLAIM = gql`
+  query ValidationsForClaim($claimId: String!) {
+    validationsForClaim(claimId: $claimId) {
+      id
+      validationType
+      comment
+      createdAt
+      user {
+        id
+        displayName
+      }
+    }
+  }
+`;
+
+export const VALIDATIONS_FOR_ARGUMENT = gql`
+  query ValidationsForArgument($argumentId: String!) {
+    validationsForArgument(argumentId: $argumentId) {
+      id
+      validationType
+      comment
+      createdAt
+      user {
+        id
+        displayName
+      }
     }
   }
 `;

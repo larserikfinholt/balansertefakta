@@ -97,6 +97,9 @@ export function Layout({ children }: { children: ReactNode }) {
         <div style={styles.headerRight}>
           {isLoading ? null : isAuthenticated ? (
             <div style={styles.userInfo}>
+              <Link to="/status" style={{ marginRight: '1rem', textDecoration: 'none', color: '#2563eb', fontWeight: 500 }}>
+                Min status
+              </Link>
               <span style={styles.userName}>
                 {user?.displayName || user?.email}
               </span>

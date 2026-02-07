@@ -121,6 +121,9 @@ model Claim {
   // Disagreement axes
   disagreements Disagreement[]
 
+  // Validations
+  validations Validation[]
+
   // Balance tracking
   proArgumentCount    Int @default(0)
   contraArgumentCount Int @default(0)
@@ -240,6 +243,9 @@ model Argument {
   // Explicit scope definition (arguments can have different scope than parent claim)
   scope Scope?
 
+  // Validations
+  validations Validation[]
+
   @@index([claimId])
   @@index([measureId])
   @@index([argumentType])
@@ -322,7 +328,8 @@ model Artifact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  extracts Extract[]
+  extracts  Extract[]
+  summaries ArtifactSummary[]
 
   @@index([outletId])
   @@index([artifactType])
@@ -397,6 +404,9 @@ model EvidenceLink {
 
   // Used as counter-evidence in challenge responses
   counterEvidenceFor ChallengeResponse[] @relation("CounterEvidence")
+
+  // Validations
+  validations Validation[]
 
   @@index([extractId])
   @@index([claimId])
@@ -517,31 +527,34 @@ model User {
   passwordHash String?
   authLevel    AuthLevel @default(ANONYMOUS)
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  updatedAt         DateTime  @updatedAt
 
-  // Budget system
-  contributionBudget Int   @default(10)
-  qualityScore       Float @default(0)
+  // Validation credit system
+  validationCredits Int   @default(0)
+  qualityScore      Float @default(0)
 
   // Relations
-  topics             Topic[]
-  subtopics          Subtopic[]
-  questions          Question[]
-  claims             Claim[]
-  measures           Measure[]
-  arguments          Argument[]
-  counterpositions   Counterposition[]
-  extracts           Extract[]
-  evidenceLinks      EvidenceLink[]
-  sourceChallenges   SourceChallenge[]
-  challengeResponses ChallengeResponse[]
-  summaries          Summary[]
-  questionClaims     QuestionClaim[]
-  questionMeasures   QuestionMeasure[]
-  stances            UserStance[]
-  scopes             Scope[]
-  disagreements      Disagreement[]
-  measureImpacts     MeasureImpact[]
+  topics                   Topic[]
+  subtopics                Subtopic[]
+  questions                Question[]
+  claims                   Claim[]
+  measures                 Measure[]
+  arguments                Argument[]
+  counterpositions         Counterposition[]
+  extracts                 Extract[]
+  evidenceLinks            EvidenceLink[]
+  sourceChallenges         SourceChallenge[]
+  challengeResponses       ChallengeResponse[]
+  summaries                Summary[]
+  questionClaims           QuestionClaim[]
+  questionMeasures         QuestionMeasure[]
+  stances                  UserStance[]
+  scopes                   Scope[]
+  disagreements            Disagreement[]
+  measureImpacts           MeasureImpact[]
+  validations              Validation[]
+  artifactSummaries        ArtifactSummary[]
+  artifactSummaryRevisions ArtifactSummaryRevision[]
 
   @@index([authLevel])
 }
@@ -730,6 +743,97 @@ model Disagreement {
   @@index([questionId])
   @@index([claimId])
   @@index([disagreementType])
+}
+
+// ============================================
+// VALIDATION SYSTEM
+// ============================================
+
+enum ValidationType {
+  CONFIRMED // Bruker bekrefter innholdet er korrekt
+  CHALLENGED // Bruker utfordrer innholdet
+  NUANCED // Bruker nyanserer (delvis riktig, kontekst mangler)
+}
+
+model Validation {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  validationType ValidationType
+  comment        String?
+  score          Int            @default(1)
+
+  // Polymorphic target - one of these must be set
+  claimId        String?
+  claim          Claim?         @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  argumentId     String?
+  argument       Argument?      @relation(fields: [argumentId], references: [id], onDelete: Cascade)
+  evidenceLinkId String?
+  evidenceLink   EvidenceLink?  @relation(fields: [evidenceLinkId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, claimId])
+  @@unique([userId, argumentId])
+  @@unique([userId, evidenceLinkId])
+  @@index([userId])
+  @@index([claimId])
+  @@index([argumentId])
+  @@index([evidenceLinkId])
+  @@index([validationType])
+}
+
+// ============================================
+// ARTIFACT SUMMARIES (Versioned source summaries)
+// ============================================
+
+model ArtifactSummary {
+  id          String        @id @default(cuid())
+  artifactId  String
+  artifact    Artifact      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  version     Int           @default(1)
+  content     String
+  keyFindings Json?
+  limitations String?
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdById String?
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+
+  revisions ArtifactSummaryRevision[]
+
+  @@unique([artifactId, version])
+  @@index([artifactId])
+}
+
+model ArtifactSummaryRevision {
+  id                String          @id @default(cuid())
+  summaryId         String
+  summary           ArtifactSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  changeDescription String
+  previousContent   String
+  createdAt         DateTime        @default(now())
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+
+  @@index([summaryId])
+  @@index([createdById])
+}
+
+// ============================================
+// PUBLISHING RULES (Global configuration)
+// ============================================
+
+model PublishingRule {
+  id          String  @id @default(cuid())
+  ruleKey     String  @unique
+  ruleValue   Int
+  description String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ============================================

@@ -1526,7 +1526,7 @@ async function main() {
       displayName: 'Venstre-Vegard',
       passwordHash: vegardPassword,
       authLevel: 'VERIFIED',
-      contributionBudget: 20,
+      validationCredits: 5,
     },
   });
 
@@ -1539,11 +1539,144 @@ async function main() {
       displayName: 'Høyre-Henrik',
       passwordHash: henrikPassword,
       authLevel: 'VERIFIED',
-      contributionBudget: 20,
+      validationCredits: 8,
     },
   });
 
   console.log(`✓ Created test users: ${vegard.displayName}, ${henrik.displayName}`);
+
+  // Publishing rules
+  await prisma.publishingRule.upsert({
+    where: { ruleKey: 'min_opposing_validations' },
+    update: {},
+    create: {
+      ruleKey: 'min_opposing_validations',
+      ruleValue: 2,
+      description: 'Minimum number of opposing validations required before publishing',
+    },
+  });
+
+  await prisma.publishingRule.upsert({
+    where: { ruleKey: 'credits_per_claim' },
+    update: {},
+    create: {
+      ruleKey: 'credits_per_claim',
+      ruleValue: 3,
+      description: 'Validation credits required to publish a claim',
+    },
+  });
+
+  await prisma.publishingRule.upsert({
+    where: { ruleKey: 'credits_per_argument' },
+    update: {},
+    create: {
+      ruleKey: 'credits_per_argument',
+      ruleValue: 2,
+      description: 'Validation credits required to publish an argument',
+    },
+  });
+
+  await prisma.publishingRule.upsert({
+    where: { ruleKey: 'credits_per_validation' },
+    update: {},
+    create: {
+      ruleKey: 'credits_per_validation',
+      ruleValue: 1,
+      description: 'Validation credits earned per validation',
+    },
+  });
+
+  console.log('✓ Created publishing rules');
+
+  // Validations - Vegard validates opposing content
+  await prisma.validation.upsert({
+    where: { userId_claimId: { userId: vegard.id, claimId: claim.id } },
+    update: {},
+    create: {
+      userId: vegard.id,
+      claimId: claim.id,
+      validationType: 'CONFIRMED',
+      comment: 'The evidence strongly supports this claim about climate change.',
+    },
+  });
+
+  await prisma.validation.upsert({
+    where: { userId_argumentId: { userId: vegard.id, argumentId: contraArg.id } },
+    update: {},
+    create: {
+      userId: vegard.id,
+      argumentId: contraArg.id,
+      validationType: 'NUANCED',
+      comment: 'This contra argument raises valid concerns but needs more context.',
+    },
+  });
+
+  await prisma.validation.upsert({
+    where: { userId_argumentId: { userId: vegard.id, argumentId: contraArg2.id } },
+    update: {},
+    create: {
+      userId: vegard.id,
+      argumentId: contraArg2.id,
+      validationType: 'CONFIRMED',
+      comment: 'This is a well-reasoned counter-argument.',
+    },
+  });
+
+  // Validations - Henrik validates opposing content
+  await prisma.validation.upsert({
+    where: { userId_claimId: { userId: henrik.id, claimId: claim2.id } },
+    update: {},
+    create: {
+      userId: henrik.id,
+      claimId: claim2.id,
+      validationType: 'CONFIRMED',
+      comment: 'Economic data supports this claim about renewable costs.',
+    },
+  });
+
+  await prisma.validation.upsert({
+    where: { userId_argumentId: { userId: henrik.id, argumentId: proArg.id } },
+    update: {},
+    create: {
+      userId: henrik.id,
+      argumentId: proArg.id,
+      validationType: 'CHALLENGED',
+      comment: 'This pro argument overstates the benefits without considering trade-offs.',
+    },
+  });
+
+  await prisma.validation.upsert({
+    where: { userId_argumentId: { userId: henrik.id, argumentId: proArg2.id } },
+    update: {},
+    create: {
+      userId: henrik.id,
+      argumentId: proArg2.id,
+      validationType: 'CONFIRMED',
+      comment: 'Well-supported pro argument with solid evidence.',
+    },
+  });
+
+  console.log('✓ Created validations');
+
+  // Artifact summary
+  await prisma.artifactSummary.upsert({
+    where: { artifactId_version: { artifactId: artifact.id, version: 1 } },
+    update: {},
+    create: {
+      artifactId: artifact.id,
+      version: 1,
+      content: 'The IPCC AR6 report provides comprehensive assessment of climate change science, impacts, and mitigation strategies. It represents the consensus of thousands of scientists worldwide.',
+      keyFindings: [
+        'Global surface temperature has increased faster since 1970 than in any other 50-year period over at least the last 2000 years',
+        'Human influence has warmed the climate at a rate unprecedented in at least 2000 years',
+        'It is virtually certain that hot extremes have become more frequent and more intense',
+      ],
+      limitations: 'Some regional projections have higher uncertainty due to limited observational data',
+      createdById: vegard.id,
+    },
+  });
+
+  console.log('✓ Created artifact summary');
 
   console.log('\n✅ Seeding complete!');
   console.log('\nSample data created:');
