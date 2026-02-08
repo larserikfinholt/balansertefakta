@@ -1,7 +1,14 @@
 import { useState } from 'react';
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
 import { useParams, Link } from 'react-router-dom';
-import { GET_QUESTION } from '../lib/queries';
+import {
+  GET_QUESTION,
+  GET_UNVALIDATED_OPPOSING_ARGUMENTS,
+  CREATE_VALIDATION,
+  MY_STATUS,
+  CAN_PUBLISH,
+  VALIDATIONS_FOR_ARGUMENT,
+} from '../lib/queries';
 import { useAuth } from '../context/AuthContext';
 import { EvidenceSection, type EvidenceLinkWithArtifact } from '../components/EvidenceSection';
 import { MaturityChecklist } from '../components/MaturityChecklist';
@@ -10,8 +17,7 @@ import { ScopeEditor } from '../components/ScopeEditor';
 import { DisagreementList, type Disagreement } from '../components/DisagreementList';
 import { AddDisagreementModal } from '../components/AddDisagreementModal';
 import { MeasureCard } from '../components/MeasureCard';
-import { UserStancePanel } from '../components/UserStancePanel';
-import { StanceDistribution } from '../components/StanceDistribution';
+import { ContributionPanel } from '../components/ContributionPanel';
 import { QuestionSummary } from '../components/QuestionSummary';
 import { CreateClaimModal } from '../components/CreateClaimModal';
 import { CreateArgumentModal } from '../components/CreateArgumentModal';
@@ -215,6 +221,70 @@ const styles = {
     color: '#666',
     fontStyle: 'italic' as const,
   },
+  acknowledgeButton: {
+    width: '100%',
+    padding: '0.4rem 0.75rem',
+    background: '#1a1a2e',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '0.78rem',
+    cursor: 'pointer',
+    marginTop: '0.5rem',
+  },
+  acknowledgeButtonDisabled: {
+    background: '#ccc',
+    cursor: 'not-allowed',
+  },
+  acknowledgedBadge: {
+    fontSize: '0.75rem',
+    color: '#4caf50',
+    fontWeight: '600' as const,
+    marginTop: '0.4rem',
+  },
+  lockedButton: {
+    padding: '0.2rem 0.5rem',
+    background: 'transparent',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    fontSize: '0.65rem',
+    color: '#999',
+    cursor: 'default',
+  },
+};
+
+const validationBadgeStyles = {
+  container: { marginTop: '0.4rem' },
+  badge: {
+    background: 'transparent',
+    border: 'none',
+    color: '#1a73e8',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    padding: 0,
+    textDecoration: 'underline' as const,
+  },
+  noBadge: {
+    fontSize: '0.72rem',
+    color: '#bbb',
+    marginTop: '0.2rem',
+  },
+  list: {
+    marginTop: '0.3rem',
+    padding: '0.5rem',
+    background: '#f5f5f5',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+  },
+  item: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '0.15rem 0',
+  },
+  type: {
+    color: '#888',
+    fontStyle: 'italic' as const,
+  },
 };
 
 const claimTypeLabels: Record<string, string> = {
@@ -225,9 +295,21 @@ const claimTypeLabels: Record<string, string> = {
   DEFINITIONAL: 'Definitorisk',
 };
 
+const validationTypeLabels: Record<string, string> = {
+  CONFIRMED: 'Bekreftet',
+  CHALLENGED: 'Utfordret',
+  NUANCED: 'Nyansert',
+};
+
 interface Counterposition {
   id: string;
   content: string;
+  createdBy?: { id: string; displayName: string } | null;
+}
+
+interface CreatedBy {
+  id: string;
+  displayName: string;
 }
 
 interface Argument {
@@ -235,7 +317,9 @@ interface Argument {
   content: string;
   argumentType: 'PRO' | 'CONTRA';
   strength: string;
+  validationCount: number;
   scope: ScopeData | null;
+  createdBy: CreatedBy | null;
   counterpositions: Counterposition[];
   evidenceLinks: EvidenceLinkWithArtifact[];
 }
@@ -249,6 +333,7 @@ interface Claim {
   proArgumentCount: number;
   contraArgumentCount: number;
   scope: ScopeData | null;
+  createdBy: CreatedBy | null;
   arguments: Argument[];
 }
 
@@ -326,10 +411,48 @@ function StrengthIndicator({ strength }: { strength: string }) {
   );
 }
 
+function ValidationBadge({ argumentId, count }: { argumentId: string; count: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const [fetchValidations, { data, loading }] = useLazyQuery(VALIDATIONS_FOR_ARGUMENT, {
+    variables: { argumentId },
+  });
+
+  const handleClick = () => {
+    if (!expanded && !data) {
+      fetchValidations();
+    }
+    setExpanded(!expanded);
+  };
+
+  if (count === 0) {
+    return <div style={validationBadgeStyles.noBadge}>Ingen anerkjennelser enna</div>;
+  }
+
+  return (
+    <div style={validationBadgeStyles.container}>
+      <button style={validationBadgeStyles.badge} onClick={handleClick}>
+        {count} anerkjennelse{count !== 1 ? 'r' : ''}
+      </button>
+      {expanded && (
+        <div style={validationBadgeStyles.list}>
+          {loading && <span>Laster...</span>}
+          {data?.validationsForArgument?.map((v: { id: string; user: { displayName: string }; validationType: string }) => (
+            <div key={v.id} style={validationBadgeStyles.item}>
+              <span>{v.user.displayName}</span>
+              <span style={validationBadgeStyles.type}>
+                {validationTypeLabels[v.validationType] || v.validationType}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function QuestionPage() {
   const { id } = useParams<{ id: string }>();
   const { isAuthenticated, user } = useAuth();
-  const [hasSubmittedStance, setHasSubmittedStance] = useState(false);
 
   // Modal states
   const [showScopeEditor, setShowScopeEditor] = useState(false);
@@ -344,8 +467,51 @@ export function QuestionPage() {
     argumentContent: string;
   } | null>(null);
 
+  // Validation state
+  const [justValidated, setJustValidated] = useState<Set<string>>(new Set());
+
   const { data, loading, error } = useQuery<{ question: Question | null }>(GET_QUESTION, {
     variables: { id },
+  });
+
+  // Fetch unvalidated opposing arguments for BOTH sides
+  const { data: unvalidatedForPro, refetch: refetchPro } = useQuery(
+    GET_UNVALIDATED_OPPOSING_ARGUMENTS,
+    {
+      variables: { questionId: id!, argumentType: 'PRO' },
+      skip: !isAuthenticated,
+    }
+  );
+  const { data: unvalidatedForContra, refetch: refetchContra } = useQuery(
+    GET_UNVALIDATED_OPPOSING_ARGUMENTS,
+    {
+      variables: { questionId: id!, argumentType: 'CONTRA' },
+      skip: !isAuthenticated,
+    }
+  );
+
+  // Check publish status for both sides
+  const { data: canPublishProData } = useQuery(CAN_PUBLISH, {
+    variables: { contentType: 'ARGUMENT', argumentType: 'PRO' },
+    skip: !isAuthenticated,
+  });
+  const { data: canPublishContraData } = useQuery(CAN_PUBLISH, {
+    variables: { contentType: 'ARGUMENT', argumentType: 'CONTRA' },
+    skip: !isAuthenticated,
+  });
+
+  // Create validation mutation
+  const [createValidation, { loading: validating }] = useMutation(CREATE_VALIDATION, {
+    refetchQueries: [
+      { query: MY_STATUS },
+      { query: GET_QUESTION, variables: { id } },
+      { query: CAN_PUBLISH, variables: { contentType: 'ARGUMENT', argumentType: 'PRO' } },
+      { query: CAN_PUBLISH, variables: { contentType: 'ARGUMENT', argumentType: 'CONTRA' } },
+    ],
+    onCompleted: () => {
+      refetchPro();
+      refetchContra();
+    },
   });
 
   if (loading) return <div style={styles.loading}>Laster sporsmal...</div>;
@@ -354,6 +520,99 @@ export function QuestionPage() {
 
   const { question } = data;
   const isVerified = user?.authLevel === 'VERIFIED' || user?.authLevel === 'STRONG_ID';
+
+  // Merge unvalidated IDs from both sides
+  const unvalidatedIds = new Set([
+    ...(unvalidatedForPro?.unvalidatedOpposingArguments ?? []).map((a: { id: string }) => a.id),
+    ...(unvalidatedForContra?.unvalidatedOpposingArguments ?? []).map((a: { id: string }) => a.id),
+  ]);
+
+  // Publish status per side
+  const proPublish = canPublishProData?.canPublish;
+  const contraPublish = canPublishContraData?.canPublish;
+  const canPublishPro = proPublish?.allowed ?? false;
+  const canPublishContra = contraPublish?.allowed ?? false;
+
+  const handleAcknowledge = (argumentId: string) => {
+    createValidation({
+      variables: {
+        input: {
+          argumentId,
+          validationType: 'CONFIRMED',
+          comment: 'Anerkjent via innholdsvisning',
+        },
+      },
+    }).then(() => {
+      setJustValidated((prev) => new Set(prev).add(argumentId));
+    });
+  };
+
+  const renderArgument = (arg: Argument, columnType: 'PRO' | 'CONTRA') => {
+    const creditLabel = columnType === 'PRO' ? 'mot' : 'for';
+
+    return (
+      <div key={arg.id} style={styles.argument}>
+        <div style={styles.argumentContent}>
+          {arg.content}
+          <StrengthIndicator strength={arg.strength} />
+          {arg.createdBy && (
+            <div style={{ fontSize: '0.7rem', color: '#999', marginTop: '0.2rem' }}>
+              {arg.createdBy.displayName}
+            </div>
+          )}
+        </div>
+        {arg.scope && (
+          <div style={{ marginTop: '0.25rem', marginBottom: '0.25rem' }}>
+            <ScopeBadge scope={arg.scope} />
+          </div>
+        )}
+        <ValidationBadge argumentId={arg.id} count={arg.validationCount} />
+        {arg.counterpositions.map((cp) => (
+          <div key={cp.id} style={styles.counterposition}>
+            Innvending: {cp.content}
+            {cp.createdBy && (
+              <span style={{ fontSize: '0.7rem', color: '#999', marginLeft: '0.5rem' }}>
+                — {cp.createdBy.displayName}
+              </span>
+            )}
+          </div>
+        ))}
+        {isAuthenticated && isVerified && (
+          <button
+            style={styles.counterpositionButton}
+            onClick={() =>
+              setShowCounterpositionModal({ argumentId: arg.id, argumentContent: arg.content })
+            }
+          >
+            + Innvending
+          </button>
+        )}
+        <EvidenceSection
+          evidenceLinks={arg.evidenceLinks}
+          argumentId={arg.id}
+          questionId={question.id}
+        />
+        {isAuthenticated && isVerified && unvalidatedIds.has(arg.id) && !justValidated.has(arg.id) && (
+          <button
+            style={{
+              ...styles.acknowledgeButton,
+              ...(validating ? styles.acknowledgeButtonDisabled : {}),
+            }}
+            onClick={() => handleAcknowledge(arg.id)}
+            disabled={validating}
+            title="A anerkjenne betyr at du har lest og forstatt argumentet — ikke at du er enig."
+          >
+            Anerkjenn (gir {creditLabel}-kreditt)
+          </button>
+        )}
+        {justValidated.has(arg.id) && (
+          <div style={styles.acknowledgedBadge}>
+            Anerkjent +1 kreditt
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -374,7 +633,7 @@ export function QuestionPage() {
 
             <div>
               <span style={{ ...styles.statusBadge, ...(question.isBalanced ? styles.balanced : styles.unbalanced) }}>
-                {question.isBalanced ? '⚖️ Balansert' : '⚠️ Trenger motposisjon'}
+                {question.isBalanced ? '⚖️ Balansert' : '⚠️ Ubalansert'}
               </span>
             </div>
 
@@ -420,6 +679,11 @@ export function QuestionPage() {
                     <span style={claim.isBalanced ? styles.balanced : styles.unbalanced}>
                       {claim.isBalanced ? '⚖️' : '⚠️'}
                     </span>
+                    {claim.createdBy && (
+                      <span style={{ fontSize: '0.75rem', color: '#888' }}>
+                        Lagt til av {claim.createdBy.displayName}
+                      </span>
+                    )}
                   </div>
                   {claim.scope && (
                     <div style={{ marginTop: '0.5rem' }}>
@@ -431,51 +695,25 @@ export function QuestionPage() {
                 <div style={styles.argumentsContainer}>
                   <div style={{ ...styles.argumentsColumn, ...styles.proColumn }}>
                     <div style={styles.columnHeader}>
-                      <span style={styles.columnTitle}>✓ For-argumenter</span>
+                      <span style={styles.columnTitle}>For-argumenter</span>
                       {isAuthenticated && isVerified && (
-                        <button
-                          style={{ ...styles.columnAddButton, color: '#155724' }}
-                          onClick={() => setShowArgumentModal({ claimId: claim.id, type: 'PRO' })}
-                        >
-                          + Legg til
-                        </button>
+                        canPublishPro ? (
+                          <button
+                            style={{ ...styles.columnAddButton, color: '#155724' }}
+                            onClick={() => setShowArgumentModal({ claimId: claim.id, type: 'PRO' })}
+                          >
+                            + Legg til
+                          </button>
+                        ) : (
+                          <span style={styles.lockedButton}>
+                            Anerkjenn {(proPublish?.requiredOpposingValidations ?? 2) - (proPublish?.opposingValidationsCount ?? 0)}/{proPublish?.requiredOpposingValidations ?? 2} mot-arg.
+                          </span>
+                        )
                       )}
                     </div>
                     {claim.arguments
                       .filter((arg) => arg.argumentType === 'PRO')
-                      .map((arg) => (
-                        <div key={arg.id} style={styles.argument}>
-                          <div style={styles.argumentContent}>
-                            {arg.content}
-                            <StrengthIndicator strength={arg.strength} />
-                          </div>
-                          {arg.scope && (
-                            <div style={{ marginTop: '0.25rem', marginBottom: '0.25rem' }}>
-                              <ScopeBadge scope={arg.scope} />
-                            </div>
-                          )}
-                          {arg.counterpositions.map((cp) => (
-                            <div key={cp.id} style={styles.counterposition}>
-                              Motposisjon: {cp.content}
-                            </div>
-                          ))}
-                          {isAuthenticated && isVerified && (
-                            <button
-                              style={styles.counterpositionButton}
-                              onClick={() =>
-                                setShowCounterpositionModal({ argumentId: arg.id, argumentContent: arg.content })
-                              }
-                            >
-                              + Motposisjon
-                            </button>
-                          )}
-                          <EvidenceSection
-                            evidenceLinks={arg.evidenceLinks}
-                            argumentId={arg.id}
-                            questionId={question.id}
-                          />
-                        </div>
-                      ))}
+                      .map((arg) => renderArgument(arg, 'PRO'))}
                     {claim.arguments.filter((a) => a.argumentType === 'PRO').length === 0 && (
                       <div style={styles.emptyState}>Ingen for-argumenter enna</div>
                     )}
@@ -483,51 +721,25 @@ export function QuestionPage() {
 
                   <div style={{ ...styles.argumentsColumn, ...styles.contraColumn }}>
                     <div style={styles.columnHeader}>
-                      <span style={styles.columnTitle}>✗ Mot-argumenter</span>
+                      <span style={styles.columnTitle}>Mot-argumenter</span>
                       {isAuthenticated && isVerified && (
-                        <button
-                          style={{ ...styles.columnAddButton, color: '#721c24' }}
-                          onClick={() => setShowArgumentModal({ claimId: claim.id, type: 'CONTRA' })}
-                        >
-                          + Legg til
-                        </button>
+                        canPublishContra ? (
+                          <button
+                            style={{ ...styles.columnAddButton, color: '#721c24' }}
+                            onClick={() => setShowArgumentModal({ claimId: claim.id, type: 'CONTRA' })}
+                          >
+                            + Legg til
+                          </button>
+                        ) : (
+                          <span style={styles.lockedButton}>
+                            Anerkjenn {(contraPublish?.requiredOpposingValidations ?? 2) - (contraPublish?.opposingValidationsCount ?? 0)}/{contraPublish?.requiredOpposingValidations ?? 2} for-arg.
+                          </span>
+                        )
                       )}
                     </div>
                     {claim.arguments
                       .filter((arg) => arg.argumentType === 'CONTRA')
-                      .map((arg) => (
-                        <div key={arg.id} style={styles.argument}>
-                          <div style={styles.argumentContent}>
-                            {arg.content}
-                            <StrengthIndicator strength={arg.strength} />
-                          </div>
-                          {arg.scope && (
-                            <div style={{ marginTop: '0.25rem', marginBottom: '0.25rem' }}>
-                              <ScopeBadge scope={arg.scope} />
-                            </div>
-                          )}
-                          {arg.counterpositions.map((cp) => (
-                            <div key={cp.id} style={styles.counterposition}>
-                              Motposisjon: {cp.content}
-                            </div>
-                          ))}
-                          {isAuthenticated && isVerified && (
-                            <button
-                              style={styles.counterpositionButton}
-                              onClick={() =>
-                                setShowCounterpositionModal({ argumentId: arg.id, argumentContent: arg.content })
-                              }
-                            >
-                              + Motposisjon
-                            </button>
-                          )}
-                          <EvidenceSection
-                            evidenceLinks={arg.evidenceLinks}
-                            argumentId={arg.id}
-                            questionId={question.id}
-                          />
-                        </div>
-                      ))}
+                      .map((arg) => renderArgument(arg, 'CONTRA'))}
                     {claim.arguments.filter((a) => a.argumentType === 'CONTRA').length === 0 && (
                       <div style={styles.emptyState}>Ingen mot-argumenter enna</div>
                     )}
@@ -560,9 +772,8 @@ export function QuestionPage() {
 
         {/* Sidebar */}
         <div style={styles.sidebar}>
+          <ContributionPanel questionId={question.id} />
           <MaturityChecklist checklist={question.maturityChecklist} />
-          <UserStancePanel questionId={question.id} onStanceSubmitted={() => setHasSubmittedStance(true)} />
-          <StanceDistribution questionId={question.id} show={hasSubmittedStance} />
         </div>
       </div>
 

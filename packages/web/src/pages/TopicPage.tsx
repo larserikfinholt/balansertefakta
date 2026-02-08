@@ -187,7 +187,7 @@ export function TopicPage() {
                   <span>{question.title}</span>
                   <span>
                     <span style={{ ...styles.badge, ...(question.isBalanced ? styles.balanced : styles.unbalanced) }}>
-                      {question.isBalanced ? '⚖️ Balansert' : '⚠️ Trenger motposisjon'}
+                      {question.isBalanced ? '⚖️ Balansert' : '⚠️ Ubalansert'}
                     </span>
                   </span>
                 </Link>

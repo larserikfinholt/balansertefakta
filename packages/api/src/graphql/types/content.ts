@@ -144,6 +144,13 @@ builder.prismaObject('Argument', {
     counterpositions: t.relation('counterpositions'),
     evidenceLinks: t.relation('evidenceLinks'),
     scope: t.relation('scope', { nullable: true }),
+    validationCount: t.int({
+      resolve: async (argument, _args, ctx) => {
+        return ctx.prisma.validation.count({
+          where: { argumentId: argument.id },
+        });
+      },
+    }),
   }),
 });
 
@@ -184,6 +191,10 @@ const CreateArgumentInput = builder.inputType('CreateArgumentInput', {
     strength: t.field({ type: 'ArgumentStrength' }),
     claimId: t.string(),
     measureId: t.string(),
+    // Inline source fields - simplified evidence creation
+    sourceUrl: t.string(),
+    sourceQuote: t.string(),
+    sourceLinkageStrength: t.field({ type: 'LinkageStrength' }),
   }),
 });
 
@@ -411,6 +422,61 @@ builder.mutationField('createArgument', (t) =>
           createdById: ctx.userId,
         },
       });
+
+      // Create inline evidence if source URL provided
+      if (args.input.sourceUrl && args.input.sourceQuote) {
+        const url = new URL(args.input.sourceUrl);
+        const hostname = url.hostname.replace(/^www\./, '');
+
+        // Find or create Domain
+        const domain = await ctx.prisma.domain.upsert({
+          where: { hostname },
+          update: {},
+          create: { hostname, name: hostname },
+        });
+
+        // Find or create Outlet
+        let outlet = await ctx.prisma.outlet.findFirst({
+          where: { domainId: domain.id },
+        });
+        if (!outlet) {
+          outlet = await ctx.prisma.outlet.create({
+            data: { name: domain.name, domainId: domain.id },
+          });
+        }
+
+        // Find or create Artifact
+        const artifact = await ctx.prisma.artifact.upsert({
+          where: { url: args.input.sourceUrl },
+          update: {},
+          create: {
+            url: args.input.sourceUrl,
+            title: args.input.sourceUrl,
+            artifactType: 'ARTICLE',
+            outletId: outlet.id,
+          },
+        });
+
+        // Create Extract
+        const extract = await ctx.prisma.extract.create({
+          data: {
+            artifactId: artifact.id,
+            content: args.input.sourceQuote,
+            extractType: 'QUOTE',
+            createdById: ctx.userId,
+          },
+        });
+
+        // Create EvidenceLink
+        await ctx.prisma.evidenceLink.create({
+          data: {
+            extractId: extract.id,
+            argumentId: argument.id,
+            linkageStrength: args.input.sourceLinkageStrength ?? 'DIRECT',
+            createdById: ctx.userId,
+          },
+        });
+      }
 
       // Deduct credits
       await ctx.prisma.user.update({

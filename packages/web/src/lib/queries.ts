@@ -84,6 +84,10 @@ export const GET_QUESTION = gql`
           isBalanced
           proArgumentCount
           contraArgumentCount
+          createdBy {
+            id
+            displayName
+          }
           scope {
             id
             temporalScope
@@ -96,6 +100,11 @@ export const GET_QUESTION = gql`
             content
             argumentType
             strength
+            validationCount
+            createdBy {
+              id
+              displayName
+            }
             scope {
               id
               temporalScope
@@ -106,6 +115,10 @@ export const GET_QUESTION = gql`
             counterpositions {
               id
               content
+              createdBy {
+                id
+                displayName
+              }
             }
             evidenceLinks {
               id
@@ -175,7 +188,7 @@ export const GET_QUESTION = gql`
           id
           title
           description
-          comment
+          rationale
           status
           isBalanced
           proArgumentCount
@@ -188,6 +201,10 @@ export const GET_QUESTION = gql`
             counterpositions {
               id
               content
+              createdBy {
+                id
+                displayName
+              }
             }
             evidenceLinks {
               id
@@ -250,6 +267,25 @@ export const CREATE_ARGUMENT = gql`
       content
       argumentType
       strength
+      createdBy {
+        id
+        displayName
+      }
+    }
+  }
+`;
+
+export const GET_UNVALIDATED_OPPOSING_ARGUMENTS = gql`
+  query GetUnvalidatedOpposingArguments($questionId: String!, $argumentType: String!) {
+    unvalidatedOpposingArguments(questionId: $questionId, argumentType: $argumentType) {
+      id
+      content
+      argumentType
+      strength
+      createdBy {
+        id
+        displayName
+      }
     }
   }
 `;

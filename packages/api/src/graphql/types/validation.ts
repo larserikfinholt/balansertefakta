@@ -219,6 +219,48 @@ builder.queryField('artifactSummaryHistory', (t) =>
   })
 );
 
+// Get opposing arguments that the user hasn't validated yet (for earning credits)
+builder.queryField('unvalidatedOpposingArguments', (t) =>
+  t.prismaField({
+    type: ['Argument'],
+    args: {
+      questionId: t.arg.string({ required: true }),
+      argumentType: t.arg.string({ required: true }), // The type the user WANTS to publish (PRO/CONTRA)
+    },
+    resolve: async (query, _root, args, ctx) => {
+      if (!ctx.userId) return [];
+
+      // If user wants to publish PRO, show CONTRA arguments to validate (and vice versa)
+      const opposingType = args.argumentType === 'PRO' ? 'CONTRA' : 'PRO';
+
+      // Get IDs of arguments user already validated
+      const existingValidations = await ctx.prisma.validation.findMany({
+        where: { userId: ctx.userId, argumentId: { not: null } },
+        select: { argumentId: true },
+      });
+      const validatedIds = existingValidations.map((v) => v.argumentId).filter(Boolean) as string[];
+
+      // Find all claims linked to this question
+      const questionClaims = await ctx.prisma.questionClaim.findMany({
+        where: { questionId: args.questionId },
+        select: { claimId: true },
+      });
+      const claimIds = questionClaims.map((qc) => qc.claimId);
+
+      return ctx.prisma.argument.findMany({
+        ...query,
+        where: {
+          argumentType: opposingType,
+          claimId: { in: claimIds },
+          id: { notIn: validatedIds },
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      });
+    },
+  })
+);
+
 builder.queryField('canPublish', (t) =>
   t.field({
     type: CanPublishResult,

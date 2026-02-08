@@ -1,11 +1,11 @@
-import { useState, CSSProperties } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { CREATE_CHALLENGE_RESPONSE, GET_QUESTION } from '../lib/queries';
 import { ChallengeBadge, challengeTypeLabels } from './ChallengeBadge';
 
-const styles: Record<string, CSSProperties> = {
+const styles = {
   overlay: {
     position: 'fixed',
     top: 0,
@@ -180,7 +180,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: '0.85rem',
     marginTop: '0.5rem',
   },
-};
+} as const;
 
 interface ChallengeResponse {
   id: string;

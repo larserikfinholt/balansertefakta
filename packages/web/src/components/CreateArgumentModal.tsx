@@ -156,6 +156,9 @@ export function CreateArgumentModal({
   const { isAuthenticated, user } = useAuth();
   const [content, setContent] = useState('');
   const [strength, setStrength] = useState('MEDIUM');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [sourceQuote, setSourceQuote] = useState('');
+  const [sourceLinkageStrength, setSourceLinkageStrength] = useState('DIRECT');
 
   const [createArgument, { loading, error }] = useMutation(CREATE_ARGUMENT, {
     refetchQueries: [{ query: GET_QUESTION, variables: { id: questionId } }],
@@ -166,7 +169,7 @@ export function CreateArgumentModal({
   });
 
   const handleSubmit = () => {
-    if (!content.trim()) return;
+    if (!content.trim() || !sourceUrl.trim() || !sourceQuote.trim()) return;
 
     createArgument({
       variables: {
@@ -176,10 +179,15 @@ export function CreateArgumentModal({
           content: content.trim(),
           argumentType,
           strength,
+          sourceUrl: sourceUrl.trim(),
+          sourceQuote: sourceQuote.trim(),
+          sourceLinkageStrength,
         },
       },
     });
   };
+
+  const canSubmit = content.trim() && sourceUrl.trim() && sourceQuote.trim() && !loading;
 
   const isPro = argumentType === 'PRO';
   const isVerified = user?.authLevel === 'VERIFIED' || user?.authLevel === 'STRONG_ID';
@@ -243,6 +251,48 @@ export function CreateArgumentModal({
           <div style={styles.hint}>Hvor overbevisende er dette argumentet?</div>
         </div>
 
+        <div style={{ borderTop: '1px solid #eee', paddingTop: '1rem', marginTop: '0.5rem' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.75rem', color: '#333' }}>
+            Kilde (pakrevd)
+          </div>
+
+          <div style={styles.field}>
+            <label style={styles.label}>URL til kilde *</label>
+            <input
+              type="url"
+              style={{ ...styles.select, padding: '0.5rem' }}
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://example.com/artikkel"
+            />
+            <div style={styles.hint}>Lenke til artikkelen, studien eller rapporten</div>
+          </div>
+
+          <div style={styles.field}>
+            <label style={styles.label}>Sitat/utdrag fra kilden *</label>
+            <textarea
+              style={{ ...styles.textarea, minHeight: '60px' }}
+              value={sourceQuote}
+              onChange={(e) => setSourceQuote(e.target.value)}
+              placeholder="Relevant sitat eller utdrag som stotter argumentet..."
+            />
+            <div style={styles.hint}>Hva i kilden stotter dette argumentet?</div>
+          </div>
+
+          <div style={styles.field}>
+            <label style={styles.label}>Kobling mellom kilde og argument</label>
+            <select
+              style={styles.select}
+              value={sourceLinkageStrength}
+              onChange={(e) => setSourceLinkageStrength(e.target.value)}
+            >
+              <option value="DIRECT">Direkte - kilden sier dette eksplisitt</option>
+              <option value="INDIRECT">Indirekte - kilden impliserer dette</option>
+              <option value="CONSISTENT_WITH">Konsistent med - kilden motsier ikke dette</option>
+            </select>
+          </div>
+        </div>
+
         {error && <div style={styles.error}>Feil: {error.message}</div>}
 
         <div style={styles.actions}>
@@ -253,10 +303,10 @@ export function CreateArgumentModal({
             style={{
               ...styles.saveButton,
               ...(isPro ? styles.proButton : styles.contraButton),
-              ...(!content.trim() || loading ? styles.saveButtonDisabled : {}),
+              ...(!canSubmit ? styles.saveButtonDisabled : {}),
             }}
             onClick={handleSubmit}
-            disabled={!content.trim() || loading}
+            disabled={!canSubmit}
           >
             {loading ? 'Legger til...' : 'Legg til'}
           </button>

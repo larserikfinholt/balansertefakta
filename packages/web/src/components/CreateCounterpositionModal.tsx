@@ -179,13 +179,13 @@ export function CreateCounterpositionModal({
       <div style={styles.overlay} onClick={onClose}>
         <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
           <div style={styles.header}>
-            <h2 style={styles.title}>Legg til motposisjon</h2>
+            <h2 style={styles.title}>Legg til innvending</h2>
             <button style={styles.closeButton} onClick={onClose}>
               ×
             </button>
           </div>
           <div style={styles.loginPrompt}>
-            Du må vaere logget inn med en verifisert konto for å legge til motposisjoner.
+            Du må vaere logget inn med en verifisert konto for å legge til innvendinger.
           </div>
         </div>
       </div>
@@ -196,7 +196,7 @@ export function CreateCounterpositionModal({
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
-          <h2 style={styles.title}>Legg til motposisjon</h2>
+          <h2 style={styles.title}>Legg til innvending</h2>
           <button style={styles.closeButton} onClick={onClose}>
             ×
           </button>
@@ -208,12 +208,12 @@ export function CreateCounterpositionModal({
         </div>
 
         <p style={styles.description}>
-          En motposisjon er det beste mulige svaret på argumentet (steelmanning). Hva ville en fornuftig
+          En innvending er det beste mulige svaret på argumentet (steelmanning). Hva ville en fornuftig
           person si som svar på dette?
         </p>
 
         <div style={styles.field}>
-          <label style={styles.label}>Motposisjon *</label>
+          <label style={styles.label}>Innvending *</label>
           <textarea
             style={styles.textarea}
             value={content}

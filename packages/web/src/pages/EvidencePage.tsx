@@ -1,4 +1,4 @@
-import { useState, CSSProperties } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,7 @@ import {
 import { ChallengeBadge, challengeTypeLabels, strengthLabels } from '../components/ChallengeBadge';
 import { ChallengeSourceModal } from '../components/ChallengeSourceModal';
 
-const styles: Record<string, CSSProperties> = {
+const styles = {
   container: {
     maxWidth: '900px',
     margin: '0 auto',
@@ -321,7 +321,7 @@ const styles: Record<string, CSSProperties> = {
   contextText: {
     color: '#333',
   },
-};
+} as const;
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);

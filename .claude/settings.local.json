@@ -30,7 +30,22 @@
       "Bash(npx prisma:*)",
       "Bash(taskkill:*)",
       "Bash(ping:*)",
-      "Bash(pnpm test:e2e:*)"
+      "Bash(pnpm test:e2e:*)",
+      "mcp__plugin_playwright_playwright__browser_install",
+      "Bash(timeout:*)",
+      "Bash(more:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes\" npx prisma db push:*)",
+      "Bash(curl:*)",
+      "Bash(pnpm dev:api:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(pnpm --filter @balansertefakta/web build:*)",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_network_requests",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_press_key",
+      "Bash(pnpm --filter @balansertefakta/web exec tsc:*)",
+      "Bash(pnpm --filter web exec tsc:*)",
+      "Bash(pnpm ls:*)"
     ]
   }
 }

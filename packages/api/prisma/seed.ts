@@ -12,6 +12,35 @@ async function hashPassword(password: string): Promise<string> {
 async function main() {
   console.log('🌱 Seeding database...');
 
+  // Create test users FIRST so we can assign createdById
+  const vegardPassword = await hashPassword('password123');
+  const vegard = await prisma.user.upsert({
+    where: { email: 'vegard@test.no' },
+    update: {},
+    create: {
+      email: 'vegard@test.no',
+      displayName: 'Venstre-Vegard',
+      passwordHash: vegardPassword,
+      authLevel: 'VERIFIED',
+      validationCredits: 5,
+    },
+  });
+
+  const henrikPassword = await hashPassword('password123');
+  const henrik = await prisma.user.upsert({
+    where: { email: 'henrik@test.no' },
+    update: {},
+    create: {
+      email: 'henrik@test.no',
+      displayName: 'Høyre-Henrik',
+      passwordHash: henrikPassword,
+      authLevel: 'VERIFIED',
+      validationCredits: 8,
+    },
+  });
+
+  console.log(`✓ Created test users: ${vegard.displayName}, ${henrik.displayName}`);
+
   // Create a sample topic
   const topic = await prisma.topic.upsert({
     where: { slug: 'klimaendringer' },
@@ -20,6 +49,7 @@ async function main() {
       title: 'Klimaendringer',
       description: 'Diskusjoner om klimaendringer, årsaker og tiltak',
       slug: 'klimaendringer',
+      createdById: vegard.id,
     },
   });
 
@@ -33,6 +63,7 @@ async function main() {
       title: 'Energipolitikk',
       description: 'Diskusjoner om energimiks, forsyningssikkerhet og utslippskutt',
       slug: 'energipolitikk',
+      createdById: henrik.id,
     },
   });
 
@@ -47,6 +78,7 @@ async function main() {
       title: 'Årsaker',
       description: 'Hva forårsaker klimaendringer?',
       slug: 'arsaker',
+      createdById: vegard.id,
     },
   });
 
@@ -61,6 +93,7 @@ async function main() {
       title: 'Tiltak',
       description: 'Mulige klimatiltak og virkemidler',
       slug: 'tiltak',
+      createdById: vegard.id,
     },
   });
 
@@ -75,6 +108,7 @@ async function main() {
       title: 'Kjernekraft',
       description: 'Rolle for kjernekraft i norsk energimiks',
       slug: 'kjernekraft',
+      createdById: henrik.id,
     },
   });
 
@@ -90,6 +124,7 @@ async function main() {
       description: 'Dette spørsmålet handler om i hvilken grad menneskelig aktivitet bidrar til global oppvarming sammenlignet med naturlige faktorer.',
       slug: 'menneskelig-aktivitet',
       status: 'OPEN',
+      createdById: vegard.id,
     },
   });
 
@@ -105,6 +140,7 @@ async function main() {
       description: 'Vurdering av kjernekraft som del av en lavutslipps energimiks i Norge.',
       slug: 'nye-kjernekraftverk',
       status: 'OPEN',
+      createdById: henrik.id,
     },
   });
 
@@ -120,6 +156,7 @@ async function main() {
       description: 'Diskusjon om karbonprising som virkemiddel: effekt, kostnad og fordeling.',
       slug: 'co2-avgift',
       status: 'OPEN',
+      createdById: vegard.id,
     },
   });
 
@@ -135,6 +172,7 @@ async function main() {
       context: 'Basert på IPCC AR6-rapportens konklusjoner',
       claimType: 'EMPIRICAL',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -150,6 +188,7 @@ async function main() {
       context: 'Påstanden gjelder driftseffekter og forsyningssikkerhet sammenlignet med andre alternativer.',
       claimType: 'CAUSAL',
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -165,6 +204,7 @@ async function main() {
       context: 'Påstanden gjelder langsiktig trend og dominerende årsak, ikke kortsiktig naturlig variasjon.',
       claimType: 'CAUSAL',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -180,6 +220,7 @@ async function main() {
       context: 'Påstanden gjelder typiske prosjektrisikoer (byggetid, finansiering, usikkerhet), ikke nødvendigvis sikker drift når anlegget først er bygget.',
       claimType: 'EMPIRICAL',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -195,6 +236,7 @@ async function main() {
       context: 'Påstanden handler om virkemiddeldesign (forutsigbarhet, bred dekning, tilbakeføring/kompensasjon) og tar høyde for fordelingsvirkninger.',
       claimType: 'CAUSAL',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -259,6 +301,7 @@ async function main() {
       strength: 'HIGH',
       claimId: claim.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -275,6 +318,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -291,6 +335,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim2.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -305,6 +350,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim2.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -319,6 +365,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -332,6 +379,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -345,6 +393,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -358,6 +407,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -372,6 +422,7 @@ async function main() {
       strength: 'HIGH',
       claimId: claim3.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -385,6 +436,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim3.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -398,6 +450,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim3.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -411,6 +464,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim3.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -425,6 +479,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim2.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -438,6 +493,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim2.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -451,6 +507,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim2.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -464,6 +521,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim2.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -478,6 +536,7 @@ async function main() {
       strength: 'HIGH',
       claimId: claim4.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -491,6 +550,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim4.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -504,6 +564,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim4.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -518,6 +579,7 @@ async function main() {
       strength: 'HIGH',
       claimId: claim5.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -531,6 +593,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim5.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -544,6 +607,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim5.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -557,6 +621,7 @@ async function main() {
       strength: 'LOW',
       claimId: claim5.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -569,6 +634,7 @@ async function main() {
       argumentId: contraArg.id,
       content: 'Mens naturlige faktorer har påvirket klimaet historisk, viser forskning at den nåværende oppvarmingen skjer mye raskere enn naturlige sykluser kan forklare, og korrelerer med økte CO2-utslipp siden den industrielle revolusjonen.',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -582,6 +648,7 @@ async function main() {
       argumentId: contraArg2.id,
       content: 'Selv om byggetid og kostnad er utfordringer, kan standardiserte design og langsiktige kraftbehov gjøre kjernekraft konkurransedyktig for stabil lavutslippskraft.',
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -594,6 +661,7 @@ async function main() {
       argumentId: contraArg3.id,
       content: 'Usikkerheter finnes, men det kan fortsatt være mulig å konkludere om dominerende årsak på aggregert nivå når mange uavhengige indikatorer peker i samme retning.',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -605,6 +673,7 @@ async function main() {
       argumentId: contraArg4.id,
       content: 'Korttidsvariabilitet kan maskere trend midlertidig, men langsiktige serier og flere datasett viser en vedvarende oppvarmingstrend som er robust på tvers av metoder.',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -616,6 +685,7 @@ async function main() {
       argumentId: co2Contra1.id,
       content: 'Naturlige variasjoner påvirker år-til-år, men det endrer ikke at langsiktig trend og massebalanse peker mot at menneskelige utslipp er den dominerende driveren for økningen.',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -627,6 +697,7 @@ async function main() {
       argumentId: riskContra1.id,
       content: 'Selv om risiko kan reduseres, er det fortsatt relevant å vurdere om dagens institusjoner og markedsdesign faktisk leverer denne risikoreduksjonen i praksis.',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -1212,6 +1283,7 @@ async function main() {
       description: 'Utrede og etablere et demonstrasjonsanlegg for små modulære reaktorer (SMR) i Norge innen 2035.',
       rationale: 'Skal gi erfaring med teknologi, kostnad og sikkerhet før eventuell skalering.',
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -1234,6 +1306,7 @@ async function main() {
       strength: 'MEDIUM',
       measureId: measure1.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -1247,6 +1320,7 @@ async function main() {
       strength: 'MEDIUM',
       measureId: measure1.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -1314,6 +1388,7 @@ async function main() {
       description: 'Heve CO₂-avgiften trinnvis med en forutsigbar bane for å stimulere til utslippskutt.',
       rationale: 'Skal gi tydelige prissignaler for investeringer i lavutslipp.',
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -1344,6 +1419,7 @@ async function main() {
       strength: 'HIGH',
       measureId: measure2.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -1357,6 +1433,7 @@ async function main() {
       strength: 'MEDIUM',
       measureId: measure2.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -1370,6 +1447,7 @@ async function main() {
       strength: 'MEDIUM',
       measureId: measure2.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -1383,6 +1461,7 @@ async function main() {
       strength: 'LOW',
       measureId: measure2.id,
       status: 'ACCEPTED',
+      createdById: henrik.id,
     },
   });
 
@@ -1397,6 +1476,7 @@ async function main() {
       strength: 'MEDIUM',
       claimId: claim4.id,
       status: 'ACCEPTED',
+      createdById: vegard.id,
     },
   });
 
@@ -1516,34 +1596,7 @@ async function main() {
 
   console.log(`✓ Logged events`);
 
-  // Create test users
-  const vegardPassword = await hashPassword('password123');
-  const vegard = await prisma.user.upsert({
-    where: { email: 'vegard@test.no' },
-    update: {},
-    create: {
-      email: 'vegard@test.no',
-      displayName: 'Venstre-Vegard',
-      passwordHash: vegardPassword,
-      authLevel: 'VERIFIED',
-      validationCredits: 5,
-    },
-  });
-
-  const henrikPassword = await hashPassword('password123');
-  const henrik = await prisma.user.upsert({
-    where: { email: 'henrik@test.no' },
-    update: {},
-    create: {
-      email: 'henrik@test.no',
-      displayName: 'Høyre-Henrik',
-      passwordHash: henrikPassword,
-      authLevel: 'VERIFIED',
-      validationCredits: 8,
-    },
-  });
-
-  console.log(`✓ Created test users: ${vegard.displayName}, ${henrik.displayName}`);
+  // Test users already created at top of seed
 
   // Publishing rules
   await prisma.publishingRule.upsert({

@@ -219,7 +219,7 @@ export function MeasureCard({ measure, questionId, onAddArgument }: Props) {
               </div>
               {arg.counterpositions.map((cp) => (
                 <div key={cp.id} style={styles.counterposition}>
-                  Motposisjon: {cp.content}
+                  Innvending: {cp.content}
                 </div>
               ))}
               <EvidenceSection evidenceLinks={arg.evidenceLinks} argumentId={arg.id} questionId={questionId} />
@@ -248,7 +248,7 @@ export function MeasureCard({ measure, questionId, onAddArgument }: Props) {
               </div>
               {arg.counterpositions.map((cp) => (
                 <div key={cp.id} style={styles.counterposition}>
-                  Motposisjon: {cp.content}
+                  Innvending: {cp.content}
                 </div>
               ))}
               <EvidenceSection evidenceLinks={arg.evidenceLinks} argumentId={arg.id} questionId={questionId} />
