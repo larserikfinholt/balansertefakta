@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { useParams, Link } from 'react-router-dom';
 import {
   GET_QUESTION,
@@ -7,299 +7,16 @@ import {
   CREATE_VALIDATION,
   MY_STATUS,
   CAN_PUBLISH,
-  VALIDATIONS_FOR_ARGUMENT,
 } from '../lib/queries';
 import { useAuth } from '../context/AuthContext';
-import { EvidenceSection, type EvidenceLinkWithArtifact } from '../components/EvidenceSection';
-import { MaturityChecklist } from '../components/MaturityChecklist';
-import { ScopeBadge, type ScopeData } from '../components/ScopeBadge';
-import { ScopeEditor } from '../components/ScopeEditor';
-import { DisagreementList, type Disagreement } from '../components/DisagreementList';
-import { AddDisagreementModal } from '../components/AddDisagreementModal';
-import { MeasureCard } from '../components/MeasureCard';
+import { type EvidenceLinkWithArtifact } from '../components/EvidenceSection';
 import { ContributionPanel } from '../components/ContributionPanel';
-import { QuestionSummary } from '../components/QuestionSummary';
 import { CreateClaimModal } from '../components/CreateClaimModal';
 import { CreateArgumentModal } from '../components/CreateArgumentModal';
 import { CreateCounterpositionModal } from '../components/CreateCounterpositionModal';
-
-const styles = {
-  breadcrumb: {
-    marginBottom: '1rem',
-    color: '#666',
-    fontSize: '0.9rem',
-  },
-  breadcrumbLink: {
-    color: '#1a1a2e',
-    textDecoration: 'none',
-  },
-  title: {
-    fontSize: '2rem',
-    marginBottom: '0.5rem',
-  },
-  description: {
-    marginBottom: '1.5rem',
-    color: '#666',
-  },
-  statusBadge: {
-    display: 'inline-block',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    marginBottom: '0.5rem',
-    marginRight: '0.5rem',
-  },
-  balanced: {
-    background: '#d4edda',
-    color: '#155724',
-  },
-  unbalanced: {
-    background: '#fff3cd',
-    color: '#856404',
-  },
-  headerSection: {
-    marginBottom: '1.5rem',
-  },
-  scopeRow: {
-    marginTop: '0.5rem',
-    marginBottom: '1rem',
-  },
-  twoColumnLayout: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 320px',
-    gap: '1.5rem',
-  },
-  mainContent: {
-    minWidth: 0,
-  },
-  sidebar: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '1rem',
-  },
-  section: {
-    marginBottom: '2rem',
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-  },
-  sectionTitle: {
-    fontSize: '1.5rem',
-    color: '#1a1a2e',
-    margin: 0,
-  },
-  addButton: {
-    padding: '0.5rem 1rem',
-    background: '#1a1a2e',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-  },
-  claimCard: {
-    background: 'white',
-    borderRadius: '8px',
-    padding: '1.5rem',
-    marginBottom: '1rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  claimHeader: {
-    marginBottom: '1rem',
-  },
-  claimStatement: {
-    fontSize: '1.1rem',
-    fontWeight: '500' as const,
-    marginBottom: '0.5rem',
-  },
-  claimMeta: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '0.5rem',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-  },
-  claimTypeBadge: {
-    padding: '0.15rem 0.5rem',
-    background: '#e3f2fd',
-    color: '#1565c0',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-  },
-  argumentsContainer: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-  },
-  argumentsColumn: {
-    padding: '1rem',
-    borderRadius: '4px',
-  },
-  proColumn: {
-    background: '#e8f5e9',
-  },
-  contraColumn: {
-    background: '#ffebee',
-  },
-  columnHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.75rem',
-  },
-  columnTitle: {
-    fontWeight: '600' as const,
-    fontSize: '0.9rem',
-    textTransform: 'uppercase' as const,
-  },
-  columnAddButton: {
-    padding: '0.2rem 0.5rem',
-    background: 'transparent',
-    border: '1px solid currentColor',
-    borderRadius: '4px',
-    fontSize: '0.7rem',
-    cursor: 'pointer',
-    opacity: 0.7,
-  },
-  argument: {
-    padding: '0.75rem',
-    background: 'white',
-    borderRadius: '4px',
-    marginBottom: '0.5rem',
-    fontSize: '0.9rem',
-  },
-  argumentContent: {
-    marginBottom: '0.25rem',
-  },
-  strengthIndicator: {
-    display: 'inline-flex',
-    gap: '2px',
-    marginLeft: '0.5rem',
-    verticalAlign: 'middle',
-  },
-  strengthBar: {
-    width: '4px',
-    height: '12px',
-    borderRadius: '2px',
-  },
-  counterposition: {
-    marginTop: '0.5rem',
-    paddingLeft: '1rem',
-    borderLeft: '2px solid #ccc',
-    fontSize: '0.85rem',
-    color: '#666',
-    fontStyle: 'italic' as const,
-  },
-  counterpositionButton: {
-    fontSize: '0.7rem',
-    color: '#666',
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '0.25rem 0',
-    marginTop: '0.25rem',
-  },
-  loading: {
-    textAlign: 'center' as const,
-    padding: '2rem',
-    color: '#666',
-  },
-  stats: {
-    display: 'flex',
-    gap: '1rem',
-    fontSize: '0.85rem',
-    color: '#666',
-  },
-  emptyState: {
-    padding: '0.75rem',
-    background: 'white',
-    borderRadius: '4px',
-    fontSize: '0.85rem',
-    color: '#666',
-    fontStyle: 'italic' as const,
-  },
-  acknowledgeButton: {
-    width: '100%',
-    padding: '0.4rem 0.75rem',
-    background: '#1a1a2e',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '0.78rem',
-    cursor: 'pointer',
-    marginTop: '0.5rem',
-  },
-  acknowledgeButtonDisabled: {
-    background: '#ccc',
-    cursor: 'not-allowed',
-  },
-  acknowledgedBadge: {
-    fontSize: '0.75rem',
-    color: '#4caf50',
-    fontWeight: '600' as const,
-    marginTop: '0.4rem',
-  },
-  lockedButton: {
-    padding: '0.2rem 0.5rem',
-    background: 'transparent',
-    border: '1px solid #ccc',
-    borderRadius: '4px',
-    fontSize: '0.65rem',
-    color: '#999',
-    cursor: 'default',
-  },
-};
-
-const validationBadgeStyles = {
-  container: { marginTop: '0.4rem' },
-  badge: {
-    background: 'transparent',
-    border: 'none',
-    color: '#1a73e8',
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    padding: 0,
-    textDecoration: 'underline' as const,
-  },
-  noBadge: {
-    fontSize: '0.72rem',
-    color: '#bbb',
-    marginTop: '0.2rem',
-  },
-  list: {
-    marginTop: '0.3rem',
-    padding: '0.5rem',
-    background: '#f5f5f5',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-  },
-  item: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '0.15rem 0',
-  },
-  type: {
-    color: '#888',
-    fontStyle: 'italic' as const,
-  },
-};
-
-const claimTypeLabels: Record<string, string> = {
-  EMPIRICAL: 'Empirisk',
-  CAUSAL: 'Kausal',
-  PROGNOSTIC: 'Prognostisk',
-  NORMATIVE: 'Normativ',
-  DEFINITIONAL: 'Definitorisk',
-};
-
-const validationTypeLabels: Record<string, string> = {
-  CONFIRMED: 'Bekreftet',
-  CHALLENGED: 'Utfordret',
-  NUANCED: 'Nyansert',
-};
+import { RelatedQuestions } from '../components/RelatedQuestions';
+import { PostCard } from '../components/PostCard';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface Counterposition {
   id: string;
@@ -318,7 +35,7 @@ interface Argument {
   argumentType: 'PRO' | 'CONTRA';
   strength: string;
   validationCount: number;
-  scope: ScopeData | null;
+  createdAt?: string;
   createdBy: CreatedBy | null;
   counterpositions: Counterposition[];
   evidenceLinks: EvidenceLinkWithArtifact[];
@@ -332,7 +49,6 @@ interface Claim {
   isBalanced: boolean;
   proArgumentCount: number;
   contraArgumentCount: number;
-  scope: ScopeData | null;
   createdBy: CreatedBy | null;
   arguments: Argument[];
 }
@@ -342,121 +58,145 @@ interface QuestionClaim {
   claim: Claim;
 }
 
-interface MeasureArgument {
-  id: string;
-  content: string;
-  argumentType: 'PRO' | 'CONTRA';
-  strength: string;
-  counterpositions: Counterposition[];
-  evidenceLinks: EvidenceLinkWithArtifact[];
-}
-
-interface Measure {
-  id: string;
-  title: string;
-  description: string | null;
-  rationale: string | null;
-  status: string;
-  isBalanced: boolean;
-  proArgumentCount: number;
-  contraArgumentCount: number;
-  arguments: MeasureArgument[];
-}
-
-interface QuestionMeasure {
-  id: string;
-  measure: Measure;
-}
-
-interface MaturityChecklistData {
-  hasScope: boolean;
-  hasDisagreementAxis: boolean;
-  hasProArguments: boolean;
-  hasContraArguments: boolean;
-  hasSupportingEvidence: boolean;
-  hasChallengingEvidence: boolean;
-  completenessScore: number;
-}
-
 interface Question {
   id: string;
   title: string;
   description: string | null;
   status: string;
   isBalanced: boolean;
-  maturityChecklist: MaturityChecklistData;
-  scope: ScopeData | null;
-  disagreements: Disagreement[];
-  claims: QuestionClaim[];
-  measures: QuestionMeasure[];
-}
-
-function StrengthIndicator({ strength }: { strength: string }) {
-  const levels = strength === 'HIGH' ? 3 : strength === 'MEDIUM' ? 2 : 1;
-  const color = strength === 'HIGH' ? '#28a745' : strength === 'MEDIUM' ? '#ffc107' : '#6c757d';
-  const label = strength === 'HIGH' ? 'Sterk' : strength === 'MEDIUM' ? 'Middels' : 'Svak';
-
-  return (
-    <span style={styles.strengthIndicator} title={`Styrke: ${label}`}>
-      {[1, 2, 3].map((level) => (
-        <span
-          key={level}
-          style={{
-            ...styles.strengthBar,
-            background: level <= levels ? color : '#e0e0e0',
-          }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function ValidationBadge({ argumentId, count }: { argumentId: string; count: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const [fetchValidations, { data, loading }] = useLazyQuery(VALIDATIONS_FOR_ARGUMENT, {
-    variables: { argumentId },
-  });
-
-  const handleClick = () => {
-    if (!expanded && !data) {
-      fetchValidations();
-    }
-    setExpanded(!expanded);
+  subtopic: {
+    id: string;
   };
-
-  if (count === 0) {
-    return <div style={validationBadgeStyles.noBadge}>Ingen anerkjennelser enna</div>;
-  }
-
-  return (
-    <div style={validationBadgeStyles.container}>
-      <button style={validationBadgeStyles.badge} onClick={handleClick}>
-        {count} anerkjennelse{count !== 1 ? 'r' : ''}
-      </button>
-      {expanded && (
-        <div style={validationBadgeStyles.list}>
-          {loading && <span>Laster...</span>}
-          {data?.validationsForArgument?.map((v: { id: string; user: { displayName: string }; validationType: string }) => (
-            <div key={v.id} style={validationBadgeStyles.item}>
-              <span>{v.user.displayName}</span>
-              <span style={validationBadgeStyles.type}>
-                {validationTypeLabels[v.validationType] || v.validationType}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  claims: QuestionClaim[];
 }
+
+const getStyles = (isMobile: boolean) => ({
+  page: {
+    background: '#f0f2f5',
+    minHeight: '100vh',
+    paddingBottom: '5rem',
+  },
+  breadcrumb: {
+    maxWidth: '900px',
+    margin: '0 auto',
+    padding: '0.75rem 1rem 0.5rem',
+    color: '#666',
+    fontSize: '0.85rem',
+  },
+  breadcrumbLink: {
+    color: '#1a1a2e',
+    textDecoration: 'none',
+  },
+  // Page header banner
+  pageHeader: {
+    maxWidth: '900px',
+    margin: '0 auto 1.5rem auto',
+    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+    borderRadius: isMobile ? '0' : '0 0 12px 12px',
+    padding: isMobile ? '1.5rem 1rem' : '2rem 2.5rem',
+    color: 'white',
+    position: 'relative' as const,
+  },
+  headerTitle: {
+    fontSize: isMobile ? '1.4rem' : '1.75rem',
+    fontWeight: '700' as const,
+    marginBottom: '0.5rem',
+    lineHeight: '1.3',
+    margin: 0,
+    paddingRight: '3rem',
+  },
+  headerDescription: {
+    fontSize: '0.95rem',
+    opacity: 0.85,
+    marginBottom: '1rem',
+    maxWidth: '600px',
+    lineHeight: '1.5',
+    margin: '0.5rem 0 1rem 0',
+  },
+  headerStats: {
+    display: 'flex',
+    gap: isMobile ? '1rem' : '1.5rem',
+    fontSize: '0.85rem',
+    opacity: 0.75,
+    flexWrap: 'wrap' as const,
+  },
+  statValue: {
+    fontWeight: '700' as const,
+    fontSize: '1.1rem',
+    display: 'block',
+  },
+  balanceBadge: {
+    position: 'absolute' as const,
+    top: isMobile ? '1rem' : '1.5rem',
+    right: isMobile ? '1rem' : '2rem',
+    padding: '0.35rem 0.75rem',
+    borderRadius: '20px',
+    fontSize: '0.85rem',
+    fontWeight: '600' as const,
+  },
+  balanced: {
+    background: 'rgba(212, 237, 218, 0.9)',
+    color: '#155724',
+  },
+  unbalanced: {
+    background: 'rgba(255, 243, 205, 0.9)',
+    color: '#856404',
+  },
+  // Feed
+  feedContainer: {
+    maxWidth: '680px',
+    margin: '0 auto',
+    padding: isMobile ? '0 0.5rem' : '0',
+  },
+  addPostButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    width: '100%',
+    padding: '0.85rem 1rem',
+    background: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    fontSize: '0.9rem',
+    color: '#666',
+    cursor: 'pointer',
+    marginBottom: '1rem',
+    textAlign: 'left' as const,
+  },
+  addPostAvatar: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: '#e3f2fd',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#1565c0',
+    fontWeight: '600' as const,
+    flexShrink: 0,
+  },
+  emptyFeed: {
+    textAlign: 'center' as const,
+    padding: '2rem',
+    color: '#999',
+    fontSize: '0.95rem',
+  },
+  loading: {
+    textAlign: 'center' as const,
+    padding: '3rem',
+    color: '#666',
+    fontSize: '0.95rem',
+  },
+});
 
 export function QuestionPage() {
   const { id } = useParams<{ id: string }>();
   const { isAuthenticated, user } = useAuth();
+  const isMobile = useIsMobile();
+  const styles = getStyles(isMobile);
 
   // Modal states
-  const [showScopeEditor, setShowScopeEditor] = useState(false);
-  const [showDisagreementModal, setShowDisagreementModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showArgumentModal, setShowArgumentModal] = useState<{
     claimId: string;
@@ -547,250 +287,113 @@ export function QuestionPage() {
     });
   };
 
-  const renderArgument = (arg: Argument, columnType: 'PRO' | 'CONTRA') => {
-    const creditLabel = columnType === 'PRO' ? 'mot' : 'for';
+  // Computed stats
+  const totalClaims = question.claims.length;
+  const totalArgs = question.claims.reduce(
+    (sum, qc) => sum + qc.claim.arguments.length,
+    0
+  );
+  const totalEvidence = question.claims.reduce(
+    (sum, qc) => sum + qc.claim.arguments.reduce((s, a) => s + a.evidenceLinks.length, 0),
+    0
+  );
 
-    return (
-      <div key={arg.id} style={styles.argument}>
-        <div style={styles.argumentContent}>
-          {arg.content}
-          <StrengthIndicator strength={arg.strength} />
-          {arg.createdBy && (
-            <div style={{ fontSize: '0.7rem', color: '#999', marginTop: '0.2rem' }}>
-              {arg.createdBy.displayName}
-            </div>
-          )}
-        </div>
-        {arg.scope && (
-          <div style={{ marginTop: '0.25rem', marginBottom: '0.25rem' }}>
-            <ScopeBadge scope={arg.scope} />
-          </div>
-        )}
-        <ValidationBadge argumentId={arg.id} count={arg.validationCount} />
-        {arg.counterpositions.map((cp) => (
-          <div key={cp.id} style={styles.counterposition}>
-            Innvending: {cp.content}
-            {cp.createdBy && (
-              <span style={{ fontSize: '0.7rem', color: '#999', marginLeft: '0.5rem' }}>
-                — {cp.createdBy.displayName}
-              </span>
-            )}
-          </div>
-        ))}
-        {isAuthenticated && isVerified && (
-          <button
-            style={styles.counterpositionButton}
-            onClick={() =>
-              setShowCounterpositionModal({ argumentId: arg.id, argumentContent: arg.content })
-            }
-          >
-            + Innvending
-          </button>
-        )}
-        <EvidenceSection
-          evidenceLinks={arg.evidenceLinks}
-          argumentId={arg.id}
-          questionId={question.id}
-        />
-        {isAuthenticated && isVerified && unvalidatedIds.has(arg.id) && !justValidated.has(arg.id) && (
-          <button
-            style={{
-              ...styles.acknowledgeButton,
-              ...(validating ? styles.acknowledgeButtonDisabled : {}),
-            }}
-            onClick={() => handleAcknowledge(arg.id)}
-            disabled={validating}
-            title="A anerkjenne betyr at du har lest og forstatt argumentet — ikke at du er enig."
-          >
-            Anerkjenn (gir {creditLabel}-kreditt)
-          </button>
-        )}
-        {justValidated.has(arg.id) && (
-          <div style={styles.acknowledgedBadge}>
-            Anerkjent +1 kreditt
-          </div>
-        )}
-      </div>
-    );
-  };
+  const userInitial = user?.displayName?.charAt(0)?.toUpperCase() || '?';
 
   return (
-    <div>
+    <div style={styles.page}>
+      {/* Breadcrumb */}
       <div style={styles.breadcrumb}>
-        <Link to="/" style={styles.breadcrumbLink}>
-          Hjem
-        </Link>{' '}
-        / Sporsmal
+        <Link to="/" style={styles.breadcrumbLink}>Hjem</Link>
+        {' '}/{' '}Sporsmal
       </div>
 
-      {/* Question Summary - at top if exists */}
-      <QuestionSummary questionId={question.id} />
+      {/* Page Header Banner */}
+      <div style={styles.pageHeader}>
+        <span style={{
+          ...styles.balanceBadge,
+          ...(question.isBalanced ? styles.balanced : styles.unbalanced),
+        }}>
+          {question.isBalanced ? '⚖️ Balansert' : '⚠️ Ubalansert'}
+        </span>
 
-      <div style={styles.twoColumnLayout}>
-        <div style={styles.mainContent}>
-          <div style={styles.headerSection}>
-            <h1 style={styles.title}>{question.title}</h1>
+        <h1 style={styles.headerTitle}>{question.title}</h1>
 
-            <div>
-              <span style={{ ...styles.statusBadge, ...(question.isBalanced ? styles.balanced : styles.unbalanced) }}>
-                {question.isBalanced ? '⚖️ Balansert' : '⚠️ Ubalansert'}
-              </span>
-            </div>
+        {question.description && (
+          <p style={styles.headerDescription}>{question.description}</p>
+        )}
 
-            <div style={styles.scopeRow}>
-              <ScopeBadge
-                scope={question.scope}
-                showEditButton={isAuthenticated && isVerified}
-                onEdit={() => setShowScopeEditor(true)}
-              />
-            </div>
+        <div style={styles.headerStats}>
+          <span>
+            <span style={styles.statValue}>{totalClaims}</span>
+            {totalClaims === 1 ? 'pastand' : 'pastander'}
+          </span>
+          <span>
+            <span style={styles.statValue}>{totalArgs}</span>
+            {totalArgs === 1 ? 'argument' : 'argumenter'}
+          </span>
+          <span>
+            <span style={styles.statValue}>{totalEvidence}</span>
+            {totalEvidence === 1 ? 'kilde' : 'kilder'}
+          </span>
+        </div>
+      </div>
 
-            {question.description && <p style={styles.description}>{question.description}</p>}
-          </div>
+      {/* Feed */}
+      <div style={styles.feedContainer}>
+        {/* Add claim prompt */}
+        {isAuthenticated && isVerified && (
+          <button style={styles.addPostButton} onClick={() => setShowClaimModal(true)}>
+            <div style={styles.addPostAvatar}>{userInitial}</div>
+            <span>Legg til en ny pastand...</span>
+          </button>
+        )}
 
-          {/* Disagreement Analysis */}
-          <DisagreementList
-            disagreements={question.disagreements}
-            showAddButton={isAuthenticated && isVerified}
-            onAddDisagreement={() => setShowDisagreementModal(true)}
+        {/* Claim posts */}
+        {question.claims.map(({ claim }) => (
+          <PostCard
+            key={claim.id}
+            claim={claim}
+            questionId={question.id}
+            isAuthenticated={isAuthenticated}
+            isVerified={isVerified}
+            canPublishPro={canPublishPro}
+            canPublishContra={canPublishContra}
+            proPublish={proPublish}
+            contraPublish={contraPublish}
+            unvalidatedIds={unvalidatedIds}
+            justValidated={justValidated}
+            validating={validating}
+            isMobile={isMobile}
+            onAcknowledge={handleAcknowledge}
+            onAddArgument={(claimId, type) => setShowArgumentModal({ claimId, type })}
+            onAddCounterposition={(argumentId, argumentContent) =>
+              setShowCounterpositionModal({ argumentId, argumentContent })
+            }
           />
+        ))}
 
-          {/* Claims Section */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Pastander</h2>
-              {isAuthenticated && isVerified && (
-                <button style={styles.addButton} onClick={() => setShowClaimModal(true)}>
-                  + Legg til pastand
-                </button>
-              )}
-            </div>
-
-            {question.claims.map(({ claim }) => (
-              <div key={claim.id} style={styles.claimCard}>
-                <div style={styles.claimHeader}>
-                  <div style={styles.claimStatement}>{claim.statement}</div>
-                  <div style={styles.claimMeta}>
-                    <span style={styles.claimTypeBadge}>{claimTypeLabels[claim.claimType] || claim.claimType}</span>
-                    <span style={styles.stats}>
-                      <span>Pro: {claim.proArgumentCount}</span>
-                      <span>Contra: {claim.contraArgumentCount}</span>
-                    </span>
-                    <span style={claim.isBalanced ? styles.balanced : styles.unbalanced}>
-                      {claim.isBalanced ? '⚖️' : '⚠️'}
-                    </span>
-                    {claim.createdBy && (
-                      <span style={{ fontSize: '0.75rem', color: '#888' }}>
-                        Lagt til av {claim.createdBy.displayName}
-                      </span>
-                    )}
-                  </div>
-                  {claim.scope && (
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <ScopeBadge scope={claim.scope} />
-                    </div>
-                  )}
-                </div>
-
-                <div style={styles.argumentsContainer}>
-                  <div style={{ ...styles.argumentsColumn, ...styles.proColumn }}>
-                    <div style={styles.columnHeader}>
-                      <span style={styles.columnTitle}>For-argumenter</span>
-                      {isAuthenticated && isVerified && (
-                        canPublishPro ? (
-                          <button
-                            style={{ ...styles.columnAddButton, color: '#155724' }}
-                            onClick={() => setShowArgumentModal({ claimId: claim.id, type: 'PRO' })}
-                          >
-                            + Legg til
-                          </button>
-                        ) : (
-                          <span style={styles.lockedButton}>
-                            Anerkjenn {(proPublish?.requiredOpposingValidations ?? 2) - (proPublish?.opposingValidationsCount ?? 0)}/{proPublish?.requiredOpposingValidations ?? 2} mot-arg.
-                          </span>
-                        )
-                      )}
-                    </div>
-                    {claim.arguments
-                      .filter((arg) => arg.argumentType === 'PRO')
-                      .map((arg) => renderArgument(arg, 'PRO'))}
-                    {claim.arguments.filter((a) => a.argumentType === 'PRO').length === 0 && (
-                      <div style={styles.emptyState}>Ingen for-argumenter enna</div>
-                    )}
-                  </div>
-
-                  <div style={{ ...styles.argumentsColumn, ...styles.contraColumn }}>
-                    <div style={styles.columnHeader}>
-                      <span style={styles.columnTitle}>Mot-argumenter</span>
-                      {isAuthenticated && isVerified && (
-                        canPublishContra ? (
-                          <button
-                            style={{ ...styles.columnAddButton, color: '#721c24' }}
-                            onClick={() => setShowArgumentModal({ claimId: claim.id, type: 'CONTRA' })}
-                          >
-                            + Legg til
-                          </button>
-                        ) : (
-                          <span style={styles.lockedButton}>
-                            Anerkjenn {(contraPublish?.requiredOpposingValidations ?? 2) - (contraPublish?.opposingValidationsCount ?? 0)}/{contraPublish?.requiredOpposingValidations ?? 2} for-arg.
-                          </span>
-                        )
-                      )}
-                    </div>
-                    {claim.arguments
-                      .filter((arg) => arg.argumentType === 'CONTRA')
-                      .map((arg) => renderArgument(arg, 'CONTRA'))}
-                    {claim.arguments.filter((a) => a.argumentType === 'CONTRA').length === 0 && (
-                      <div style={styles.emptyState}>Ingen mot-argumenter enna</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {question.claims.length === 0 && (
-              <p style={styles.description}>Ingen pastander knyttet til dette sporsmalet enna.</p>
-            )}
+        {question.claims.length === 0 && (
+          <div style={styles.emptyFeed}>
+            Ingen pastander knyttet til dette sporsmalet enna.
           </div>
+        )}
 
-          {/* Measures Section */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Tiltak</h2>
-              {isAuthenticated && isVerified && (
-                <button style={styles.addButton}>+ Legg til tiltak</button>
-              )}
-            </div>
-
-            {question.measures.map(({ measure }) => (
-              <MeasureCard key={measure.id} measure={measure} questionId={question.id} />
-            ))}
-
-            {question.measures.length === 0 && <p style={styles.description}>Ingen tiltak foreslatt enna.</p>}
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div style={styles.sidebar}>
-          <ContributionPanel questionId={question.id} />
-          <MaturityChecklist checklist={question.maturityChecklist} />
-        </div>
+        {/* Related Questions */}
+        <RelatedQuestions
+          subtopicId={question.subtopic.id}
+          currentQuestionId={question.id}
+          variant="horizontal"
+        />
       </div>
+
+      {/* Contribution Bar */}
+      <ContributionPanel questionId={question.id} variant="bar" />
 
       {/* Modals */}
-      {showScopeEditor && (
-        <ScopeEditor
-          questionId={question.id}
-          currentScope={question.scope}
-          onClose={() => setShowScopeEditor(false)}
-        />
+      {showClaimModal && (
+        <CreateClaimModal questionId={question.id} onClose={() => setShowClaimModal(false)} />
       )}
-
-      {showDisagreementModal && (
-        <AddDisagreementModal questionId={question.id} onClose={() => setShowDisagreementModal(false)} />
-      )}
-
-      {showClaimModal && <CreateClaimModal questionId={question.id} onClose={() => setShowClaimModal(false)} />}
 
       {showArgumentModal && (
         <CreateArgumentModal

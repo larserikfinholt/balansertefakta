@@ -108,6 +108,7 @@ builder.mutationField('register', (t) =>
           displayName,
           passwordHash,
           authLevel: 'VERIFIED',
+          validationCredits: 1,
         },
       });
 

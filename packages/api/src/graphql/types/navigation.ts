@@ -206,6 +206,26 @@ builder.queryField('question', (t) =>
   })
 );
 
+builder.queryField('questionsBySubtopic', (t) =>
+  t.prismaField({
+    type: ['Question'],
+    args: {
+      subtopicId: t.arg.string({ required: true }),
+      excludeId: t.arg.string(),
+    },
+    resolve: (query, _root, args, ctx) =>
+      ctx.prisma.question.findMany({
+        ...query,
+        where: {
+          subtopicId: args.subtopicId,
+          ...(args.excludeId ? { id: { not: args.excludeId } } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+  })
+);
+
 // Input types for mutations
 const CreateTopicInput = builder.inputType('CreateTopicInput', {
   fields: (t) => ({

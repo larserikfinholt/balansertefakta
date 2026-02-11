@@ -45,7 +45,10 @@
       "mcp__plugin_playwright_playwright__browser_press_key",
       "Bash(pnpm --filter @balansertefakta/web exec tsc:*)",
       "Bash(pnpm --filter web exec tsc:*)",
-      "Bash(pnpm ls:*)"
+      "Bash(pnpm ls:*)",
+      "Bash(npx --no-install tsc:*)",
+      "Bash(pnpm --filter @balansertefakta/api build:*)",
+      "Bash(pnpm exec tsc:*)"
     ]
   }
 }

@@ -48,31 +48,8 @@ export const GET_QUESTION = gql`
       description
       status
       isBalanced
-      maturityChecklist {
-        hasScope
-        hasDisagreementAxis
-        hasProArguments
-        hasContraArguments
-        hasSupportingEvidence
-        hasChallengingEvidence
-        completenessScore
-      }
-      scope {
+      subtopic {
         id
-        temporalScope
-        geographicScope
-        systemBoundary
-        assumptions
-      }
-      disagreements {
-        id
-        description
-        disagreementType
-        createdAt
-        createdBy {
-          id
-          displayName
-        }
       }
       claims {
         id
@@ -88,29 +65,16 @@ export const GET_QUESTION = gql`
             id
             displayName
           }
-          scope {
-            id
-            temporalScope
-            geographicScope
-            systemBoundary
-            assumptions
-          }
           arguments {
             id
             content
             argumentType
             strength
             validationCount
+            createdAt
             createdBy {
               id
               displayName
-            }
-            scope {
-              id
-              temporalScope
-              geographicScope
-              systemBoundary
-              assumptions
             }
             counterpositions {
               id
@@ -182,60 +146,16 @@ export const GET_QUESTION = gql`
           }
         }
       }
-      measures {
-        id
-        measure {
-          id
-          title
-          description
-          rationale
-          status
-          isBalanced
-          proArgumentCount
-          contraArgumentCount
-          arguments {
-            id
-            content
-            argumentType
-            strength
-            counterpositions {
-              id
-              content
-              createdBy {
-                id
-                displayName
-              }
-            }
-            evidenceLinks {
-              id
-              linkageStrength
-              isChallenged
-              extract {
-                id
-                content
-                extractType
-                pageNumber
-                artifact {
-                  id
-                  title
-                  url
-                  artifactType
-                  publishedAt
-                  authors
-                  outlet {
-                    name
-                    domain {
-                      name
-                      hostname
-                      credibilityScore
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+    }
+  }
+`;
+
+export const GET_QUESTIONS_BY_SUBTOPIC = gql`
+  query GetQuestionsBySubtopic($subtopicId: String!, $excludeId: String) {
+    questionsBySubtopic(subtopicId: $subtopicId, excludeId: $excludeId) {
+      id
+      title
+      isBalanced
     }
   }
 `;

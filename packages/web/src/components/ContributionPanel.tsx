@@ -4,9 +4,10 @@ import { MY_STATUS, CAN_PUBLISH } from '../lib/queries';
 
 interface Props {
   questionId: string;
+  variant?: 'panel' | 'bar';
 }
 
-const styles = {
+const panelStyles = {
   panel: {
     background: 'white',
     borderRadius: '8px',
@@ -19,79 +20,129 @@ const styles = {
     marginBottom: '0.75rem',
     color: '#1a1a2e',
   },
-  intro: {
-    fontSize: '0.8rem',
-    color: '#666',
-    marginBottom: '1rem',
-    lineHeight: '1.4',
-  },
   loginPrompt: {
     fontSize: '0.9rem',
     color: '#666',
     textAlign: 'center' as const,
     padding: '1rem 0',
   },
-  sideSection: {
-    marginBottom: '1rem',
-    padding: '0.75rem',
+  nextStep: {
+    fontSize: '0.88rem',
+    color: '#333',
+    lineHeight: '1.5',
+    marginBottom: '0.75rem',
+  },
+  readyBadge: {
+    display: 'inline-block',
+    padding: '0.4rem 0.75rem',
     borderRadius: '6px',
-  },
-  proSection: {
-    background: '#f1f8e9',
-    border: '1px solid #c5e1a5',
-  },
-  contraSection: {
-    background: '#fce4ec',
-    border: '1px solid #ef9a9a',
-  },
-  sideTitle: {
     fontSize: '0.85rem',
     fontWeight: '600' as const,
     marginBottom: '0.5rem',
   },
-  progressRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '0.2rem 0',
-    fontSize: '0.8rem',
-    color: '#333',
-  },
-  progressLabel: {
-    color: '#666',
-    fontSize: '0.78rem',
-  },
-  progressDone: {
+  readyPro: {
+    background: '#e8f5e9',
     color: '#2e7d32',
-    fontWeight: '600' as const,
-    fontSize: '0.78rem',
   },
-  progressPending: {
+  readyContra: {
+    background: '#ffebee',
     color: '#c62828',
-    fontWeight: '600' as const,
-    fontSize: '0.78rem',
   },
-  statusReady: {
-    fontSize: '0.78rem',
-    color: '#2e7d32',
-    fontWeight: '600' as const,
-    marginTop: '0.3rem',
+  progressBar: {
+    height: '6px',
+    background: '#eee',
+    borderRadius: '3px',
+    overflow: 'hidden' as const,
+    marginBottom: '0.5rem',
   },
-  statusNotReady: {
-    fontSize: '0.78rem',
-    color: '#999',
-    marginTop: '0.3rem',
+  progressFill: {
+    height: '100%',
+    borderRadius: '3px',
+    transition: 'width 0.3s ease',
   },
   hint: {
-    fontSize: '0.75rem',
+    fontSize: '0.78rem',
     color: '#888',
-    marginTop: '0.75rem',
     lineHeight: '1.3',
     fontStyle: 'italic' as const,
   },
+  section: {
+    marginBottom: '0.75rem',
+    padding: '0.6rem',
+    borderRadius: '6px',
+    border: '1px solid #eee',
+  },
 };
 
-export function ContributionPanel({ questionId }: Props) {
+const barStyles = {
+  bar: {
+    position: 'fixed' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: 'white',
+    borderTop: '1px solid #e0e0e0',
+    boxShadow: '0 -2px 8px rgba(0,0,0,0.08)',
+    padding: '0.6rem 1rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '1.5rem',
+    zIndex: 100,
+  },
+  barSegment: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontSize: '0.82rem',
+  },
+  barLabel: {
+    fontWeight: '600' as const,
+    fontSize: '0.75rem',
+  },
+  barProgress: {
+    width: '60px',
+    height: '4px',
+    background: '#eee',
+    borderRadius: '2px',
+    overflow: 'hidden' as const,
+  },
+  barProgressFill: {
+    height: '100%',
+    borderRadius: '2px',
+    transition: 'width 0.3s ease',
+  },
+  barReady: {
+    fontSize: '0.78rem',
+    fontWeight: '600' as const,
+    padding: '0.2rem 0.5rem',
+    borderRadius: '10px',
+  },
+  barHint: {
+    fontSize: '0.72rem',
+    color: '#999',
+    maxWidth: '120px',
+  },
+  barDivider: {
+    width: '1px',
+    height: '24px',
+    background: '#e0e0e0',
+  },
+  barCredits: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    fontSize: '0.8rem',
+    color: '#666',
+    fontWeight: '500' as const,
+  },
+  loginText: {
+    fontSize: '0.82rem',
+    color: '#666',
+  },
+};
+
+export function ContributionPanel({ questionId, variant = 'panel' }: Props) {
   const { isAuthenticated, user } = useAuth();
 
   const { data: statusData } = useQuery(MY_STATUS, {
@@ -108,104 +159,196 @@ export function ContributionPanel({ questionId }: Props) {
     skip: !isAuthenticated,
   });
 
-  if (!isAuthenticated) {
-    return (
-      <div style={styles.panel}>
-        <div style={styles.title}>Delta i debatten</div>
-        <div style={styles.loginPrompt}>
-          Logg inn for a bidra med argumenter og kilder.
-        </div>
-      </div>
-    );
-  }
-
   const isVerified = user?.authLevel === 'VERIFIED' || user?.authLevel === 'STRONG_ID';
   const credits = statusData?.myStatus?.validationCredits ?? 0;
 
   const proPublish = canPublishProData?.canPublish;
   const contraPublish = canPublishContraData?.canPublish;
 
+  const canPro = proPublish?.allowed ?? false;
+  const canContra = contraPublish?.allowed ?? false;
+
   const proOpposing = proPublish?.opposingValidationsCount ?? 0;
   const proRequired = proPublish?.requiredOpposingValidations ?? 2;
   const proCreditsReq = proPublish?.requiredCredits ?? 2;
-  const canPro = proPublish?.allowed ?? false;
 
   const contraOpposing = contraPublish?.opposingValidationsCount ?? 0;
   const contraRequired = contraPublish?.requiredOpposingValidations ?? 2;
   const contraCreditsReq = contraPublish?.requiredCredits ?? 2;
-  const canContra = contraPublish?.allowed ?? false;
 
-  return (
-    <div style={styles.panel}>
-      <div style={styles.title}>Delta i debatten</div>
+  const proProgress = Math.min(1, (proOpposing / proRequired + credits / proCreditsReq) / 2);
+  const contraProgress = Math.min(1, (contraOpposing / contraRequired + credits / contraCreditsReq) / 2);
 
-      {!isVerified && (
-        <div style={styles.loginPrompt}>
+  // ---- BAR VARIANT ----
+  if (variant === 'bar') {
+    if (!isAuthenticated) {
+      return (
+        <div style={barStyles.bar}>
+          <span style={barStyles.loginText}>Logg inn for a delta i debatten</span>
+        </div>
+      );
+    }
+
+    if (!isVerified) {
+      return (
+        <div style={barStyles.bar}>
+          <span style={barStyles.loginText}>Verifiser kontoen din for a bidra</span>
+        </div>
+      );
+    }
+
+    const proRemaining = proRequired - proOpposing;
+    const contraRemaining = contraRequired - contraOpposing;
+
+    return (
+      <div style={barStyles.bar}>
+        {/* PRO segment */}
+        <div style={barStyles.barSegment}>
+          <span style={{ ...barStyles.barLabel, color: '#2e7d32' }}>For</span>
+          {canPro ? (
+            <span style={{ ...barStyles.barReady, background: '#e8f5e9', color: '#2e7d32' }}>
+              Klar
+            </span>
+          ) : (
+            <>
+              <div style={barStyles.barProgress}>
+                <div style={{ ...barStyles.barProgressFill, width: `${proProgress * 100}%`, background: '#4caf50' }} />
+              </div>
+              <span style={barStyles.barHint}>
+                {proRemaining > 0 ? `${proRemaining} mot-arg.` : ''}
+              </span>
+            </>
+          )}
+        </div>
+
+        <div style={barStyles.barDivider} />
+
+        {/* Credits */}
+        <div style={barStyles.barCredits}>
+          <span>{credits}</span>
+          <span style={{ fontSize: '0.72rem', color: '#999' }}>kreditter</span>
+        </div>
+
+        <div style={barStyles.barDivider} />
+
+        {/* CONTRA segment */}
+        <div style={barStyles.barSegment}>
+          <span style={{ ...barStyles.barLabel, color: '#c62828' }}>Mot</span>
+          {canContra ? (
+            <span style={{ ...barStyles.barReady, background: '#ffebee', color: '#c62828' }}>
+              Klar
+            </span>
+          ) : (
+            <>
+              <div style={barStyles.barProgress}>
+                <div style={{ ...barStyles.barProgressFill, width: `${contraProgress * 100}%`, background: '#ef5350' }} />
+              </div>
+              <span style={barStyles.barHint}>
+                {contraRemaining > 0 ? `${contraRemaining} for-arg.` : ''}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ---- PANEL VARIANT (original) ----
+  if (!isAuthenticated) {
+    return (
+      <div style={panelStyles.panel}>
+        <div style={panelStyles.title}>Delta i debatten</div>
+        <div style={panelStyles.loginPrompt}>
+          Logg inn for a bidra med argumenter og kilder.
+        </div>
+      </div>
+    );
+  }
+
+  if (!isVerified) {
+    return (
+      <div style={panelStyles.panel}>
+        <div style={panelStyles.title}>Delta i debatten</div>
+        <div style={panelStyles.loginPrompt}>
           Du trenger en verifisert konto for a bidra.
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {isVerified && (
-        <>
-          <div style={styles.intro}>
-            For a publisere argumenter ma du forst anerkjenne motsidens argumenter.
-            Dette sikrer at alle leser og forstar begge sider.
-          </div>
+  const getNextStepText = (
+    side: 'pro' | 'contra',
+    canPublish: boolean,
+    opposing: number,
+    required: number,
+    creditsNeeded: number,
+  ) => {
+    if (canPublish) return null;
+    const opposingLabel = side === 'pro' ? 'mot' : 'for';
+    const remaining = required - opposing;
+    const creditShortfall = creditsNeeded - credits;
 
-          {/* PRO publish status */}
-          <div style={{ ...styles.sideSection, ...styles.proSection }}>
-            <div style={{ ...styles.sideTitle, color: '#2e7d32' }}>
-              Publisere for-argument
-            </div>
-            <div style={styles.progressRow}>
-              <span style={styles.progressLabel}>Mot-anerkjennelser</span>
-              <span style={proOpposing >= proRequired ? styles.progressDone : styles.progressPending}>
-                {proOpposing}/{proRequired}
-              </span>
-            </div>
-            <div style={styles.progressRow}>
-              <span style={styles.progressLabel}>Kreditter</span>
-              <span style={credits >= proCreditsReq ? styles.progressDone : styles.progressPending}>
-                {credits}/{proCreditsReq}
-              </span>
-            </div>
-            {canPro ? (
-              <div style={styles.statusReady}>Klar til publisering</div>
-            ) : (
-              <div style={styles.statusNotReady}>Ikke klar</div>
-            )}
-          </div>
+    if (remaining > 0 && creditShortfall > 0) {
+      return `Anerkjenn ${remaining} ${opposingLabel}-argument${remaining > 1 ? 'er' : ''} til for a lase opp`;
+    }
+    if (remaining > 0) {
+      return `Anerkjenn ${remaining} ${opposingLabel}-argument${remaining > 1 ? 'er' : ''} til`;
+    }
+    if (creditShortfall > 0) {
+      return `Du trenger ${creditShortfall} kreditt${creditShortfall > 1 ? 'er' : ''} til`;
+    }
+    return null;
+  };
 
-          {/* CONTRA publish status */}
-          <div style={{ ...styles.sideSection, ...styles.contraSection }}>
-            <div style={{ ...styles.sideTitle, color: '#c62828' }}>
-              Publisere mot-argument
-            </div>
-            <div style={styles.progressRow}>
-              <span style={styles.progressLabel}>For-anerkjennelser</span>
-              <span style={contraOpposing >= contraRequired ? styles.progressDone : styles.progressPending}>
-                {contraOpposing}/{contraRequired}
-              </span>
-            </div>
-            <div style={styles.progressRow}>
-              <span style={styles.progressLabel}>Kreditter</span>
-              <span style={credits >= contraCreditsReq ? styles.progressDone : styles.progressPending}>
-                {credits}/{contraCreditsReq}
-              </span>
-            </div>
-            {canContra ? (
-              <div style={styles.statusReady}>Klar til publisering</div>
-            ) : (
-              <div style={styles.statusNotReady}>Ikke klar</div>
-            )}
-          </div>
+  return (
+    <div style={panelStyles.panel}>
+      <div style={panelStyles.title}>Delta i debatten</div>
 
-          <div style={styles.hint}>
-            Trykk "Anerkjenn" pa argumenter i innholdet for a tjene kreditter.
-            A anerkjenne betyr at du har lest og forstatt argumentet — ikke at du er enig.
+      {/* PRO side */}
+      <div style={{ ...panelStyles.section, borderColor: canPro ? '#c5e1a5' : '#eee' }}>
+        {canPro ? (
+          <div style={{ ...panelStyles.readyBadge, ...panelStyles.readyPro }}>
+            Klar til a legge til for-argument
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div style={{ fontWeight: '600', fontSize: '0.85rem', color: '#2e7d32', marginBottom: '0.4rem' }}>
+              For-argument
+            </div>
+            <div style={panelStyles.progressBar}>
+              <div style={{ ...panelStyles.progressFill, width: `${proProgress * 100}%`, background: '#4caf50' }} />
+            </div>
+            <div style={panelStyles.nextStep}>
+              {getNextStepText('pro', canPro, proOpposing, proRequired, proCreditsReq)}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* CONTRA side */}
+      <div style={{ ...panelStyles.section, borderColor: canContra ? '#ef9a9a' : '#eee' }}>
+        {canContra ? (
+          <div style={{ ...panelStyles.readyBadge, ...panelStyles.readyContra }}>
+            Klar til a legge til mot-argument
+          </div>
+        ) : (
+          <>
+            <div style={{ fontWeight: '600', fontSize: '0.85rem', color: '#c62828', marginBottom: '0.4rem' }}>
+              Mot-argument
+            </div>
+            <div style={panelStyles.progressBar}>
+              <div style={{ ...panelStyles.progressFill, width: `${contraProgress * 100}%`, background: '#ef5350' }} />
+            </div>
+            <div style={panelStyles.nextStep}>
+              {getNextStepText('contra', canContra, contraOpposing, contraRequired, contraCreditsReq)}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div style={panelStyles.hint}>
+        Trykk "Anerkjenn" pa argumenter fra den andre siden for a lase opp publisering.
+      </div>
     </div>
   );
 }
